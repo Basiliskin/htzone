@@ -198,20 +198,23 @@ Verified 2026-11-26: `php:8.3-apache` ships SQLite 3.46.1, and FTS5, prefix quer
 ## 6. Search pipeline (D2, D3, D11, D14, D15, D17)
 
 ```
-GET /api/search?q=…
- └ SearchController: read q → SearchQuery (400 if too short)
-   └ SearchProducts::execute(SearchQuery)
+GET /api/search?q=…&cat=&min=&max=
+ └ SearchController: read q → SearchQuery (400 if too short); cat/min/max → SearchFilter (400 invalid_filter)
+   └ SearchProducts::execute(SearchQuery, SearchFilter)
        1. terms = QueryNormalizer.normalize(query)        // empty after stop-words → result with 0 items
        2. candidates = repo.findCandidates(terms, 100)    // FTS5 MATCH, ordered by weighted bm25
-       3. ranked = Ranker.rank(candidates, terms)         // ≤ 24
+       3. ranked = Ranker.rank(candidates, terms)         // every candidate, best first
        4. if ranked is empty → typo fallback:
             words = the original words with ≥ 3 letters (non-qualifiers)
             candidates = repo.findByTrigrams(words, 100)
             ranked = Ranker.rankFuzzy(candidates, words)  // keep only similarity ≥ 0.4
             notice = DidYouMean(best-matching word from the top product)
        5. else if a qualifier term isn't in any top-3 result's name/attributes → notice = MissingModel
-       6. return SearchResult(query, ranked, notice)
+       6. shown  = no filter ? ranked : filter(Ranker.strong(ranked))   // D43, D46
+          facets = Facets.from(Ranker.strong(ranked), filter)          // chips + price range
+       7. return SearchResult(query, top 24 of shown, notice, facets)
 ```
+*Added after QA (D43–D46):* the filter runs after ranking, so it never changes the order and can reach products below the first 24. `Ranker::strong()` keeps results scoring ≥ 50 % of the best (`strongShare`); chips and filtered lists use only those, so weak description-only matches don't create chips. Without a filter step 6 is a no-op and the output is exactly as before.
 
 **FtsQueryBuilder** (the safety boundary):
 - Every variant is emitted as a quoted string with `"` doubled, then `*` for start-of-word matching when it has ≥ 2 characters. *Changed in S3:* qualifiers get no `*`, mirroring the Ranker's whole-word rule ("16" doesn't fetch "160").
@@ -230,7 +233,7 @@ GET /api/search?q=…
 6. **Qualifiers** (numbers and units) must equal a whole word ("16" doesn't match "160"), and are also looked up in the attributes. They add a small bonus only when matched alongside at least one non-qualifier term. A candidate matching only qualifiers is dropped whenever any candidate matches a non-qualifier. This stops "iPhone 16" from surfacing pans and laptops through "16". A query of numbers only treats them as ordinary terms.
    Candidates the index found only through the description (coverage 0, no qualifier) are kept, below every field match.
 7. Ties are broken by `id` ascending, so the order is deterministic and the tests are stable.
-8. Return the top 24.
+8. *Changed in D43:* the Ranker returns every candidate in order; the use case cuts to 24 after filtering.
 
 **Performance:** 1,000 rows, a fully indexed MATCH and PHP re-ranking of at most 100 rows come to roughly 5–15 ms. That's measured in a Relevance test and logged as `duration_ms` (AC-1.6).
 
@@ -254,7 +257,7 @@ It runs in three places:
 | Method | Path | Success | Errors | Cache |
 |---|---|---|---|---|
 | GET | `/` (and any non-API path) | 200 HTML (`templates/page.php`) | — | `no-cache` |
-| GET | `/api/search?q=` | 200 JSON (below) | 400 `query_too_short` / `query_missing`, 405, 500 | `public, max-age=60` |
+| GET | `/api/search?q=&cat=&min=&max=` | 200 JSON (below) | 400 `query_too_short` / `query_missing` / `invalid_filter`, 405, 500 | `public, max-age=60` |
 | GET | `/health` | 200 `{"status":"ok","products":1000}` | 503 `{"status":"unavailable"}` | `no-store` |
 | GET | `/assets/*` | static file (Apache) | 404 | fonts/images `public, max-age=604800`; `.js`/`.css` `no-cache` (ETag → 304) |
 | GET | `/api/*` other | — | 404 `not_found` (JSON) | — |
@@ -270,9 +273,14 @@ It runs in three places:
       "price": { "amount": 389900, "currency": "ILS", "formatted": "₪3,899" },
       "image": "https://placehold.co/600x600/...png?text=smartphone" }
   ],
-  "notice": { "type": "missing_model", "message": "לא נמצא דגם מדויק, הנה המוצרים הקרובים" }
+  "notice": { "type": "missing_model", "message": "לא נמצא דגם מדויק, הנה המוצרים הקרובים" },
+  "facets": {
+    "categories": [ { "name": "סלולר, אודיו וגאדג'טים", "count": 6 } ],
+    "price": { "min": 129900, "max": 549900 }
+  }
 }
 ```
+`facets` (D43–D46) counts the strong matches, not only the 24 returned: `categories` most first, `price` in agorot like `price.amount` (`null` when nothing matches). `cat` is a category name, `min`/`max` whole shekels (inclusive).
 `notice` is `null` when absent. For `did_you_mean` it's `{"type":"did_you_mean","message":"האם התכוונת: מיקרוגל?","suggestion":"מיקרוגל"}`.
 
 **Error shape** (every 4xx/5xx from PHP): `{"error":{"code":"query_too_short","message":"…hebrew text…"}}`.
@@ -281,6 +289,7 @@ It runs in three places:
 |---|---|---|
 | `query_missing` | 400 | no `q` parameter |
 | `query_too_short` | 400 | < 2 characters after trimming |
+| `invalid_filter` | 400 | `min`/`max` not whole shekels (0–9,999,999), `min` > `max`, or `cat` over 100 characters |
 | `not_found` | 404 | unknown `/api/*` route |
 | `method_not_allowed` | 405 | not GET/HEAD |
 | `internal_error` | 500 | any uncaught throwable; details only in the log |
@@ -296,7 +305,7 @@ It runs in three places:
 
 *Changed in S4:* Apache sets these headers only on responses that don't come from `index.php` (static files, its own 403/404). Otherwise every PHP response carried each header twice. `/assets/*` is never rewritten to PHP, so a missing asset is a real 404. `HEAD` = `GET` without a body. 405 adds `Allow: GET, HEAD`. Errors and `/health` are `Cache-Control: no-store`.
 
-**Request log** (one JSON line to stdout per request, through `JsonLogger`): `ts, level, msg="request", method, path, status, duration_ms, q (≤100 chars), results, notice, fallback (bool)`. Errors also log `exception` class and message, never sent to the client.
+**Request log** (one JSON line to stdout per request, through `JsonLogger`): `ts, level, msg="request", method, path, status, duration_ms, q (≤100 chars), results, notice, fallback (bool)`, plus `cat, min_shekels, max_shekels` when a filter is set. Errors also log `exception` class and message, never sent to the client.
 
 ## 9. Frontend (detailed in `docs/design.md`)
 
@@ -307,6 +316,7 @@ It runs in three places:
 - `state.js` is a small state machine (`idle | loading | results | empty | error`) plus URL sync (`history.replaceState`/`pushState`, `popstate`).
 - `render.js` builds the DOM with `textContent` and `setAttribute` only; `innerHTML` is never used with data, which prevents XSS (AC-4.4). It renders the skeleton, cards, notice, empty and error states, and the image fallback (`onerror` is attached in JS, not inline).
 - `app.js` wires the events: 250 ms debounce, `/` and `Esc` keys, the retry button.
+- *Added (D43–D45):* the filters live in the URL next to `q` (`cat`, `min`, `max`); a filter change pushes a history entry, so Back undoes it. `state.js` cleans them (`normalizeFilters`) and adds the `filtered` state; `render.filters()` builds the chips and price hints.
 
 ## 10. Composition root and config
 

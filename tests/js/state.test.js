@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cleanQuery, classify, queryFromUrl, urlWithQuery, historyMethod, createSearch } from '../../public/assets/state.js';
+import { cleanQuery, classify, queryFromUrl, urlWithQuery, historyMethod, createSearch, filtersFromUrl, normalizeFilters, hasFilters, NO_FILTERS } from '../../public/assets/state.js';
 
 test('cleanQuery trims and cuts to 100 characters (AC-4.2)', () => {
     assert.equal(cleanQuery('  שואב אבק  '), 'שואב אבק');
@@ -28,8 +28,8 @@ test('queryFromUrl and urlWithQuery round-trip ?q= and keep other parts (AC-5.5)
 /** A fake API: every call returns a promise the test resolves or rejects by hand. */
 function fakeApi() {
     const calls = [];
-    const fetchResults = (query, signal) => new Promise((resolve, reject) => {
-        calls.push({ query, signal, resolve, reject });
+    const fetchResults = (query, signal, filters) => new Promise((resolve, reject) => {
+        calls.push({ query, signal, filters, resolve, reject });
         signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
     });
     return { calls, fetchResults };
@@ -128,4 +128,38 @@ test('history: typing replaces the entry, but the first change after a submit op
     assert.deepEqual(historyMethod({ current: '/?q=ab', next: '/?q=ab', committed: true, commit: false }), { method: null, committed: true });
     // a chip click right after a submit: a new entry, committed
     assert.deepEqual(historyMethod({ current: '/?q=ab', next: '/?q=xy', committed: true, commit: true }), { method: 'push', committed: true });
+});
+
+test('filters: read from the URL, prices cleaned to whole shekels, min/max swapped when reversed (D43–D45)', () => {
+    assert.deepEqual(filtersFromUrl('https://x.test/?q=a&cat=%D7%9E%D7%98%D7%91%D7%97&min=100&max=500'), { cat: 'מטבח', min: '100', max: '500' });
+    assert.deepEqual(filtersFromUrl('https://x.test/?q=a'), NO_FILTERS);
+    // anything the API would reject is dropped instead of becoming an error page
+    assert.deepEqual(filtersFromUrl('https://x.test/?min=-5&max=1e3'), NO_FILTERS);
+    assert.deepEqual(normalizeFilters({ cat: ' בית ', min: '0500', max: '100' }), { cat: 'בית', min: '100', max: '500' });
+    assert.deepEqual(normalizeFilters({ cat: '', min: '9.5', max: '' }), NO_FILTERS);
+    assert.equal(hasFilters(NO_FILTERS), false);
+    assert.equal(hasFilters({ cat: '', min: '', max: '200' }), true);
+});
+
+test('urlWithQuery carries the filters and drops empty ones', () => {
+    assert.equal(urlWithQuery('https://x.test/', 'מתנה', { cat: 'בית', min: '', max: '200' }), '/?q=%D7%9E%D7%AA%D7%A0%D7%94&cat=%D7%91%D7%99%D7%AA&max=200');
+    assert.equal(urlWithQuery('https://x.test/?q=a&cat=x&min=1', 'a', NO_FILTERS), '/?q=a');
+});
+
+test('a filter that leaves nothing is its own state, not "no results"; retry keeps the filters', async () => {
+    const api = fakeApi();
+    const ui = recorder();
+    const search = createSearch({ fetchResults: api.fetchResults, onState: ui.onState });
+    const filters = { cat: 'בית', min: '', max: '50' };
+
+    const done = search.run('ספה', filters);
+    assert.deepEqual(api.calls[0].filters, filters);
+    api.calls[0].resolve(response(0));
+    await done;
+    const retried = search.retry();
+    api.calls[1].resolve(response(2));
+    await retried;
+
+    assert.deepEqual(ui.names(), ['loading', 'filtered', 'loading', 'results']);
+    assert.deepEqual(api.calls[1].filters, filters);
 });

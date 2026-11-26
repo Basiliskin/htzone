@@ -92,3 +92,65 @@ test('a server error shows the error panel, and Retry runs the same query again'
     await expect(realCards(page)).not.toHaveCount(0);
     await expect(page.locator('#results-title')).toBeFocused();
 });
+
+test('category chip and price range narrow the results, live in the URL, and Back undoes them (D43–D45)', async ({ page }) => {
+    await page.goto('/?q=' + encodeURIComponent('מתנה'));
+    await expect(body(page)).toHaveAttribute('data-state', 'results');
+
+    const cats = page.getByRole('group', { name: 'סינון לפי קטגוריה' });
+    await expect(cats.getByRole('button', { name: 'הכול' })).toHaveAttribute('aria-pressed', 'true');
+    const kitchen = cats.getByRole('button', { name: /מטבח ובישול/ });
+    const chipCount = Number((await kitchen.textContent())?.match(/\((\d+)\)/)?.[1]);
+
+    await kitchen.click();
+    await expect(page).toHaveURL(/cat=%D7%9E%D7%98%D7%91%D7%97/);
+    await expect(cats.getByRole('button', { name: /מטבח ובישול/ })).toHaveAttribute('aria-pressed', 'true');
+    await expect(cats.getByRole('button', { name: /מטבח ובישול/ })).toBeFocused(); // focus survives the rebuild
+    await expect(realCards(page)).toHaveCount(Math.min(24, chipCount)); // the chip promised exactly this many
+
+    // A budget below the most expensive kitchen gift: fewer cards, all within it, both filters in the URL.
+    const max = page.getByLabel('עד ₪');
+    await expect(max).toHaveAttribute('placeholder', /^\d+$/); // the range of these results, as a hint
+    const before = await realCards(page).count();
+    await max.fill('400');
+    await max.press('Enter');
+    await expect(page).toHaveURL(/max=400/);
+    await expect(page).toHaveURL(/cat=/);
+    await expect(realCards(page)).not.toHaveCount(0);
+    await expect(realCards(page)).not.toHaveCount(before);
+    for (const price of await realCards(page).locator('.price').allTextContents()) {
+        expect(Number(price.replace(/[^\d.]/g, ''))).toBeLessThanOrEqual(400);
+    }
+
+    // Back undoes the price, then the category.
+    await page.goBack();
+    await expect(page).not.toHaveURL(/max=/);
+    await expect(max).toHaveValue('');
+    await page.goBack();
+    await expect(page).not.toHaveURL(/cat=/);
+    await expect(cats.getByRole('button', { name: 'הכול' })).toHaveAttribute('aria-pressed', 'true');
+
+    // A new query drops the category (it may not exist there) but keeps the budget.
+    await cats.getByRole('button', { name: /מטבח ובישול/ }).click();
+    await max.fill('400');
+    await max.press('Enter');
+    await expect(page).toHaveURL(/cat=.*max=400/);
+    await page.getByRole('searchbox', { name: 'חיפוש מוצרים' }).fill('ספה');
+    await expect(page).toHaveURL(/q=%D7%A1%D7%A4%D7%94&max=400$/);
+});
+
+test('a filter that leaves nothing says so and offers to clear it (not "no products found")', async ({ page }) => {
+    await page.goto('/?q=' + encodeURIComponent('שואב אבק') + '&max=1');
+
+    await expect(body(page)).toHaveAttribute('data-state', 'filtered');
+    await expect(page.getByRole('heading', { name: 'אין מוצרים בסינון הזה' })).toBeVisible();
+    await expect(page.locator('#empty')).toBeHidden();
+    await expect(page.getByLabel('עד ₪')).toHaveValue('1');
+
+    await page.getByRole('button', { name: 'נקו סינון' }).click();
+
+    await expect(body(page)).toHaveAttribute('data-state', 'results');
+    await expect(page).not.toHaveURL(/max=/);
+    await expect(realCards(page)).not.toHaveCount(0);
+    await expect(page.locator('#results-title')).toBeFocused();
+});

@@ -168,14 +168,25 @@ final class RankerTest extends TestCase
         self::assertSame(['P0002', 'P0001'], $ids);
     }
 
-    public function testReturnsAtMost24(): void
+    public function testStrongMatchesScoreAtLeastHalfOfTheBest(): void
     {
+        $ranker = new Ranker();
+        $ranked = $ranker->rank([self::candidate('P0001', 'ספה'), self::candidate('P0002', 'שטיח')], (new QueryNormalizer())->normalize(SearchQuery::fromRaw('ספה')));
+
+        self::assertCount(2, $ranked);
+        self::assertSame(['P0001'], array_map(static fn (RankedProduct $r): string => $r->product->id, $ranker->strong($ranked)));
+        self::assertSame([], $ranker->strong([]));
+    }
+
+    public function testRanksEveryCandidateSoFiltersCanReachPastTheFirst24(): void
+    {
+        // The 24-result page size is the use case's job (SearchProducts, D43), after filtering.
         $candidates = [];
         for ($i = 1; $i <= 30; ++$i) {
             $candidates[] = self::candidate(sprintf('P%04d', $i), 'ספה');
         }
 
-        self::assertCount(24, self::rank('ספה', $candidates));
+        self::assertCount(30, self::rank('ספה', $candidates));
         self::assertSame([], self::rank('ספה', []));
     }
 

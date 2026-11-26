@@ -52,7 +52,7 @@ final class KernelTest extends TestCase
         self::assertSame('public, max-age=60', $response->header('Cache-Control'));
 
         $body = self::json($response);
-        self::assertSame(['query', 'total', 'results', 'notice'], array_keys($body));
+        self::assertSame(['query', 'total', 'results', 'notice', 'facets'], array_keys($body));
         self::assertSame('שואב אבק', $body['query']);
         self::assertNull($body['notice']);
         self::assertIsArray($body['results']);
@@ -70,6 +70,44 @@ final class KernelTest extends TestCase
         self::assertSame('ILS', $first['price']['currency']);
         self::assertMatchesRegularExpression('/^₪[\d,]+(\.\d\d)?$/u', self::string($first['price']['formatted']));
         self::assertStringStartsWith('https://', self::string($first['image']));
+
+        self::assertIsArray($body['facets']);
+        self::assertSame(['categories', 'price'], array_keys($body['facets']));
+        self::assertIsArray($body['facets']['categories']);
+        self::assertSame(['name' => 'מוצרי חשמל לבית', 'count' => 15], self::array($body['facets']['categories'][0]), 'all 15 vacuums, more than the top 24 hold');
+        self::assertIsArray($body['facets']['price']);
+        self::assertSame(['min', 'max'], array_keys($body['facets']['price']));
+        self::assertLessThanOrEqual($body['facets']['price']['max'], $body['facets']['price']['min']);
+    }
+
+    public function testCategoryAndPriceFilterNarrowTheResults(): void
+    {
+        $all = self::json($this->get('/api/search', ['q' => 'מתנה']));
+        $categories = self::array(self::array($all['facets'])['categories']);
+        self::assertGreaterThanOrEqual(2, count($categories), 'a broad need-query spans several categories');
+        $kitchen = self::array($categories[array_search('מטבח ובישול', array_column($categories, 'name'), true)]);
+
+        $body = self::json($this->get('/api/search', ['q' => 'מתנה', 'cat' => 'מטבח ובישול', 'max' => '300']));
+        self::assertGreaterThan(0, $body['total']);
+        foreach (self::array($body['results']) as $product) {
+            self::assertSame('מטבח ובישול', self::array($product)['category']);
+            self::assertLessThanOrEqual(30_000, self::array(self::array($product)['price'])['amount']);
+        }
+        // The chips still offer other categories (the category filter ignores itself) …
+        $chipsNow = self::array(self::array($body['facets'])['categories']);
+        self::assertGreaterThanOrEqual(2, count($chipsNow));
+        // … and the kitchen count follows the budget: it is exactly what the filtered list holds.
+        $kitchenNow = self::array($chipsNow[array_search('מטבח ובישול', array_column($chipsNow, 'name'), true)]);
+        self::assertSame($body['total'], min(24, $kitchenNow['count']));
+        self::assertLessThanOrEqual($kitchen['count'], $kitchenNow['count']);
+    }
+
+    public function testAFilterThatMatchesNothingIsAnEmptyListNotAnError(): void
+    {
+        $body = self::json($this->get('/api/search', ['q' => 'שואב אבק', 'cat' => 'אין קטגוריה כזו']));
+
+        self::assertSame(0, $body['total']);
+        self::assertNotSame([], self::array($body['facets'])['categories'], 'the visitor can still pick a real category');
     }
 
     public function testMissingModelNoticeCarriesTheHebrewMessage(): void
@@ -117,6 +155,10 @@ final class KernelTest extends TestCase
         yield 'empty q' => [['q' => ''], 'query_too_short'];
         yield 'one letter' => [['q' => 'א'], 'query_too_short'];
         yield 'only spaces and RLM' => [['q' => "  \u{200F} "], 'query_too_short'];
+        yield 'price not a number' => [['q' => 'מתנה', 'min' => 'abc'], 'invalid_filter'];
+        yield 'negative price' => [['q' => 'מתנה', 'max' => '-1'], 'invalid_filter'];
+        yield 'min above max' => [['q' => 'מתנה', 'min' => '500', 'max' => '100'], 'invalid_filter'];
+        yield 'category too long' => [['q' => 'מתנה', 'cat' => str_repeat('א', 101)], 'invalid_filter'];
     }
 
     public function testSearchEngineAndSqlSyntaxIsPlainText(): void
@@ -403,6 +445,16 @@ final class KernelTest extends TestCase
         self::assertIsArray($error);
 
         return $error['code'];
+    }
+
+    /**
+     * @return array<array-key, mixed>
+     */
+    private static function array(mixed $value): array
+    {
+        self::assertIsArray($value);
+
+        return $value;
     }
 
     private static function string(mixed $value): string

@@ -76,6 +76,8 @@ Dark mode: **not built** (D22). It's listed in the README *With more time* (the 
 | Search form | `form.search[role=search]` (`GET /?q=` works without JS) | idle / focused (border becomes `--ink`) / has text (✕ visible). Input: `type=search`, `dir="auto"` (input only), `maxlength=100`, `autocomplete=off`, visually hidden `<label>`. Button: icon + "חיפוש"; text hidden < 480px. ✕ has `aria-label="ניקוי החיפוש"` |
 | Suggestion chips | `ul.chips > li > button.chip` | shown on landing and in the no-results panel; click → fills the input and searches. The list is the brief's 5 example queries |
 | Results header | `.results-head` | "מצאנו מוצרים בשבילכם" + count "N מוצרים"; hidden (not removed) while loading so the layout doesn't jump |
+| Filters (D43–D46) | `#filters`: `#cats[role=group]` of `button.chip[aria-pressed]` + `form#price` | Category chips "‹name› (N)", "הכול" first; shown when the matches span ≥ 2 categories or one is chosen; the chosen chip is ink-filled. On < 560px the chips are one horizontal scrolling row and the chosen one is scrolled into view. Price: two `type=number` fields with visible labels "מ־₪" / "עד ₪", placeholders = the results' range, applied on change, Enter or "סינון". A chip keeps focus after the chips are rebuilt; a price field being edited isn't overwritten by a response that lands mid-typing |
+| Filtered-empty | `#filtered-empty.panel` inside `#results` | "אין מוצרים בסינון הזה" + "נקו סינון" (focus then moves to the results heading). Different from the empty panel: the search found products, the filter removed them |
 | Notice | `#notice.notice` | hidden when `notice=null`; `missing_model` → message only; `did_you_mean` → message + link button "חפשו ‹suggestion›" |
 | Result card | `li.card` | image (`loading=lazy`, `decoding=async`, width/height set → no layout shift; `alt=""` because the name is right next to it) · brand line (`<bdi>`, omitted when null) · name `h3` (2-line clamp, `title` = full name, **inherits RTL, never `dir="auto"`**) · price `<bdi dir="ltr">₪1,299</bdi>`. Hover lift 2px (desktop only) |
 | Image fallback | JS `error` listener, once | swaps to `/assets/img/fallback.svg` and adds `.no-img`; same box size |
@@ -85,13 +87,14 @@ Dark mode: **not built** (D22). It's listed in the README *With more time* (the 
 | Short-query hint | `#short.panel` | "הקלידו לפחות 2 תווים כדי לחפש" |
 | Live region | `#live[aria-live=polite][role=status]` | announces "נמצאו N מוצרים" / "לא נמצאו מוצרים" / "אירעה שגיאה בחיפוש" / the short-query hint |
 
-The page state lives on `body[data-state]`, which is one of `idle | short | loading | results | empty | error`. CSS shows and hides sections from this attribute only, and JS never toggles `display` itself.
+The page state lives on `body[data-state]`, which is one of `idle | short | loading | results | filtered | empty | error`. CSS shows and hides sections from this attribute only, and JS never toggles `display` itself.
 
 ## 4. Interaction rules
 
 - **Debounce** 250ms after typing. Enter or the button searches immediately and cancels the debounce.
 - **Race safety:** every search aborts the previous request (`AbortController`). Aborted responses are ignored, so an old response can never replace a newer one.
 - **URL sync:** each search writes `?q=` with `history.replaceState`. Loading the page with `?q=` runs the search. *Back/Forward*: `pushState` on submitted searches (Enter, button or chip), `replaceState` while typing; `popstate` restores the query.
+- **Filters in the URL** (D43–D45): `cat`, `min`, `max` next to `q`. A filter change pushes a history entry (Back undoes it). A new query clears the category and keeps the price.
 - **Limits** (mirror of the server rules): trimmed; empty → idle; 1 character → short hint, no request; more than 100 characters → cut.
 - **Keyboard:**
   - `/` focuses the search box from anywhere, unless you're already typing in a field;

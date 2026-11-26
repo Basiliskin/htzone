@@ -11,11 +11,15 @@ export class SearchError extends Error {
 }
 
 /**
- * GET /api/search?q=… → {query, total, results, notice}. An abort rejects with the browser's AbortError.
- * fetchFn is a parameter only so tests can pass a fake.
+ * GET /api/search?q=…&cat=&min=&max= → {query, total, results, notice, facets}. Empty filters are left out.
+ * An abort rejects with the browser's AbortError. fetchFn is a parameter only so tests can pass a fake.
  */
-export async function search(query, signal, fetchFn = fetch) {
-    const response = await fetchFn(`/api/search?${new URLSearchParams({ q: query })}`, {
+export async function search(query, signal, filters = {}, fetchFn = fetch) {
+    const params = new URLSearchParams({ q: query });
+    for (const name of ['cat', 'min', 'max']) {
+        if (filters[name]) params.set(name, filters[name]);
+    }
+    const response = await fetchFn(`/api/search?${params}`, {
         signal,
         headers: { Accept: 'application/json' },
     });

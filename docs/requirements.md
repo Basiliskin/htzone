@@ -104,6 +104,14 @@ The actor is the **Visitor** (anonymous). AC ids are referenced by tests (`AC-x.
 - **AC-7.5** Config comes from env, and `.env.example` is committed. No secret appears in the repo or its history.
 - **AC-7.6** The container runs as non-root. Dependency versions are pinned (`composer.lock`).
 
+### US9 — Narrow the Results by category and price *(added after QA, D43–D46)*
+*As a Visitor I want to narrow a broad search to one category and a budget so that I can compare only what fits.*
+- **AC-9.1** Results that span 2+ categories show category chips "‹name› (N)" and "הכול"; choosing one shows exactly N products (up to 24), in the same order as before.
+- **AC-9.2** Two price fields (whole shekels, inclusive) narrow the Results; their placeholders show the price range of the current matches.
+- **AC-9.3** The filters are in the URL (`cat`, `min`, `max`); Back undoes the last filter change; a new query clears the category and keeps the price.
+- **AC-9.4** A filter that leaves nothing shows "אין מוצרים בסינון הזה" with "נקו סינון", not the no-results panel.
+- **AC-9.5** Chips and filtered lists use only strong matches (≥ 50 % of the best score); without a filter the Results are unchanged. Invalid values → 400 `invalid_filter`.
+
 ### US8 — Deliverables
 *As a reviewer I want to open a link, read the repo and README, and understand the decisions.*
 - **AC-8.1** The live URL works over HTTPS without local setup. The README states the cold-start delay.
@@ -164,7 +172,7 @@ Exact product ids in rows 12 and 14 are pinned by `/data` after enrichment. If a
   - one Playwright E2E test
 - **Could:** brand/category on cards · highlight matched words · dark mode. *Cut first if short on time, then Playwright.*
 - **Won't** (each goes to README *With more time*):
-  - filters/sorting and pagination — not needed to judge relevance; 24 results is enough for the brief's Queries
+  - ~~filters~~ *built after QA as US9 (D43–D46)*; sorting and pagination — not needed to judge relevance; 24 results is enough for the brief's Queries
   - embeddings / semantic vectors — runtime dependency; tags cover the brief (D2)
   - rate limiting — needs shared state; free host restarts reset it
   - search analytics / monitoring — no backend to send it to in scope

@@ -2,7 +2,7 @@
 // window, history and the keyboard; rules live in state.js, DOM building in render.js.
 import { search } from './api.js';
 import { byId } from './dom.js';
-import { cleanQuery, createSearch, historyMethod, queryFromUrl, urlWithQuery } from './state.js';
+import { NO_FILTERS, cleanQuery, createSearch, filtersFromUrl, historyMethod, normalizeFilters, queryFromUrl, urlWithQuery } from './state.js';
 import * as render from './render.js';
 
 const DEBOUNCE_MS = 250;
@@ -12,24 +12,30 @@ const input = byId('q');
 const clearButton = byId('clear');
 const live = byId('live');
 const view = { grid: byId('grid'), count: byId('count'), notice: byId('notice') };
+const filterView = { filters: byId('filters'), cats: byId('cats'), min: byId('min'), max: byId('max') };
 const emptyQuery = byId('empty-q');
 
 let debounce = 0;
 let committed = queryFromUrl(location.href) !== ''; // a URL that already has ?q= is a submitted search
-let focusAfterRetry = false;
+let focusNewContent = false;
+let filters = filtersFromUrl(location.href); // D43: category + price, kept in the URL with ?q=
+let currentQuery = cleanQuery(input.value);
 
 const session = createSearch({ fetchResults: search, onState: show });
 
 function show(event) {
     document.body.dataset.state = event.state;
     if (event.state === 'loading') render.skeletons(view.grid);
-    if (event.state === 'results') render.results(view, event.data, (q) => submit(q));
+    if (event.state === 'results' || event.state === 'filtered') {
+        render.results(view, event.data, (q) => submit(q));
+        render.filters(filterView, event.data, filters, (cat) => setFilters({ ...filters, cat }));
+    }
     if (event.state === 'empty') emptyQuery.textContent = event.query;
     announce(render.announcement(event));
 
     // Retry hides the button the user is on; move focus to the new content instead of losing it.
-    if (focusAfterRetry && event.state !== 'loading') {
-        focusAfterRetry = false;
+    if (focusNewContent && event.state !== 'loading') {
+        focusNewContent = false;
         document.getElementById(`${event.state}-title`)?.focus();
     }
 }
@@ -42,7 +48,7 @@ function announce(text) {
 
 function syncUrl(query, commit) {
     const current = location.pathname + location.search + location.hash;
-    const next = urlWithQuery(location.href, query);
+    const next = urlWithQuery(location.href, query, filters);
     const step = historyMethod({ current, next, committed, commit });
     committed = step.committed;
     if (step.method === 'push') history.pushState(null, '', next);
@@ -53,8 +59,23 @@ function syncUrl(query, commit) {
 function run(raw, commit) {
     clearTimeout(debounce);
     clearButton.hidden = input.value === '';
-    syncUrl(cleanQuery(raw), commit);
-    session.run(raw);
+    const query = cleanQuery(raw);
+    if (query !== currentQuery) {
+        // A new query: its results may not have the old category. The price range stays, like a budget.
+        currentQuery = query;
+        filters = { ...filters, cat: '' };
+    }
+    syncUrl(query, commit);
+    session.run(raw, filters);
+}
+
+/** A filter change is a deliberate step: it gets its own history entry, so Back undoes it. */
+function setFilters(next) {
+    const clean = normalizeFilters(next);
+    if (clean.cat === filters.cat && clean.min === filters.min && clean.max === filters.max) return;
+    filters = clean;
+    syncUrl(currentQuery, true);
+    session.run(input.value, filters);
 }
 
 function submit(query) {
@@ -82,8 +103,29 @@ form.addEventListener('submit', (e) => {
 
 clearButton.addEventListener('click', clear);
 
+const priceForm = byId('price');
+const priceInputs = [filterView.min, filterView.max];
+const markPriceClean = () => priceInputs.forEach((i) => delete i.dataset.dirty);
+const applyPrice = () => {
+    const next = { ...filters, min: filterView.min.value, max: filterView.max.value };
+    markPriceClean();
+    setFilters(next);
+};
+priceInputs.forEach((i) => i.addEventListener('input', () => { i.dataset.dirty = 'true'; }));
+priceForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    applyPrice();
+});
+filterView.min.addEventListener('change', applyPrice);
+filterView.max.addEventListener('change', applyPrice);
+
+byId('clear-filters').addEventListener('click', () => {
+    focusNewContent = true; // the button disappears with the state; focus moves to the new results heading
+    setFilters(NO_FILTERS);
+});
+
 byId('retry').addEventListener('click', () => {
-    focusAfterRetry = true;
+    focusNewContent = true;
     session.retry();
 });
 
@@ -117,9 +159,12 @@ window.addEventListener('popstate', () => {
     clearButton.hidden = query === '';
     committed = true;
     clearTimeout(debounce);
-    session.run(query);
+    filters = filtersFromUrl(location.href);
+    currentQuery = cleanQuery(query);
+    markPriceClean(); // Back/Forward shows the URL's prices, whatever was half-typed
+    session.run(query, filters);
 });
 
 // The template already put ?q= into the input (it also works without JS); run it once.
 clearButton.hidden = input.value === '';
-session.run(input.value);
+session.run(input.value, filters);

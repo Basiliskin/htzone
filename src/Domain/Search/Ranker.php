@@ -46,6 +46,24 @@ final readonly class Ranker
     }
 
     /**
+     * The strong matches of an already ranked list: scoring at least `strongShare` of the best (D46).
+     * Filters and category chips use only these; the weak tail (a word found only in a description)
+     * would otherwise fill the chips with unrelated categories.
+     *
+     * @param list<RankedProduct> $ranked best first, as rank() returns it
+     * @return list<RankedProduct>
+     */
+    public function strong(array $ranked): array
+    {
+        if ($ranked === []) {
+            return [];
+        }
+        $threshold = $ranked[0]->score * $this->weights->strongShare;
+
+        return array_values(array_filter($ranked, static fn (RankedProduct $r): bool => $r->score >= $threshold));
+    }
+
+    /**
      * Typo fallback (D15): keep candidates with a word spelled close to each query word.
      *
      * @param list<Candidate> $candidates from the trigram index
@@ -186,7 +204,7 @@ final readonly class Ranker
     }
 
     /**
-     * Rules 7–8: best score first, ties by id, at most `limit`.
+     * Rule 7: best score first, ties by id. Every candidate is kept: the use case filters, then cuts to 24 (D43).
      *
      * @param array<RankedProduct> $ranked
      * @return list<RankedProduct>
@@ -195,6 +213,6 @@ final readonly class Ranker
     {
         usort($ranked, static fn (RankedProduct $a, RankedProduct $b): int => [$b->score, $a->product->id] <=> [$a->score, $b->product->id]);
 
-        return array_slice($ranked, 0, $this->weights->limit);
+        return $ranked;
     }
 }

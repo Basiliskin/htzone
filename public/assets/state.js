@@ -15,15 +15,42 @@ export function classify(query) {
     return length < MIN_LENGTH ? 'short' : 'search';
 }
 
+/** No category and no price bounds (D43). Prices are whole shekels as strings, the way the URL holds them. */
+export const NO_FILTERS = Object.freeze({ cat: '', min: '', max: '' });
+const SHEKELS = /^\d{1,7}$/; // the API's rule (SearchFilter): whole shekels up to ₪9,999,999
+
+function cleanPrice(raw) {
+    const text = String(raw ?? '').trim();
+    return SHEKELS.test(text) ? String(Number(text)) : '';
+}
+
+/** Trimmed category, prices the API accepts (anything else dropped), min and max swapped when reversed. */
+export function normalizeFilters({ cat = '', min = '', max = '' } = {}) {
+    let [low, high] = [cleanPrice(min), cleanPrice(max)];
+    if (low !== '' && high !== '' && Number(low) > Number(high)) [low, high] = [high, low];
+    return { cat: String(cat).trim(), min: low, max: high };
+}
+
+export function hasFilters(filters) {
+    return filters.cat !== '' || filters.min !== '' || filters.max !== '';
+}
+
+export function filtersFromUrl(href) {
+    const params = new URL(href).searchParams;
+    return normalizeFilters({ cat: params.get('cat') ?? '', min: params.get('min') ?? '', max: params.get('max') ?? '' });
+}
+
 export function queryFromUrl(href) {
     return new URL(href).searchParams.get('q') ?? '';
 }
 
-/** The same URL with ?q= set (or removed when empty), as a path for history.pushState/replaceState. */
-export function urlWithQuery(href, query) {
+/** The same URL with ?q= and the filters set (or removed when empty), as a path for history.pushState/replaceState. */
+export function urlWithQuery(href, query, filters = NO_FILTERS) {
     const url = new URL(href);
-    if (query) url.searchParams.set('q', query);
-    else url.searchParams.delete('q');
+    for (const [name, value] of [['q', query], ['cat', filters.cat], ['min', filters.min], ['max', filters.max]]) {
+        if (value) url.searchParams.set(name, value);
+        else url.searchParams.delete(name);
+    }
     return url.pathname + url.search + url.hash;
 }
 
@@ -42,16 +69,19 @@ export function historyMethod({ current, next, committed, commit }) {
  * One search session: every run aborts the previous request, and a response that arrives after a
  * newer run is dropped, so an old response can never replace a newer one (AC-3.1).
  *
- * @param {{fetchResults: (query: string, signal: AbortSignal) => Promise<any>, onState: (s: object) => void}} deps
- *   onState receives {state, query, data?, error?} with state one of idle|short|loading|results|empty|error.
+ * @param {{fetchResults: (query: string, signal: AbortSignal, filters: object) => Promise<any>, onState: (s: object) => void}} deps
+ *   onState receives {state, query, data?, error?} with state one of idle|short|loading|results|empty|filtered|error.
+ *   `filtered` = the search found products but the filters left none (D43), so "clear filters" is the way out.
  */
 export function createSearch({ fetchResults, onState }) {
     let controller = null;
     let lastQuery = '';
+    let lastFilters = NO_FILTERS;
 
-    async function run(raw) {
+    async function run(raw, filters = NO_FILTERS) {
         const query = cleanQuery(raw);
         lastQuery = query;
+        lastFilters = filters;
         controller?.abort();
         controller = null;
 
@@ -65,9 +95,10 @@ export function createSearch({ fetchResults, onState }) {
         controller = own;
         onState({ state: 'loading', query });
         try {
-            const data = await fetchResults(query, own.signal);
+            const data = await fetchResults(query, own.signal, filters);
             if (own.signal.aborted) return;
-            onState({ state: data.results.length > 0 ? 'results' : 'empty', query, data });
+            const none = hasFilters(filters) ? 'filtered' : 'empty';
+            onState({ state: data.results.length > 0 ? 'results' : none, query, data });
         } catch (error) {
             if (own.signal.aborted) return;
             onState({ state: 'error', query, error });
@@ -76,6 +107,6 @@ export function createSearch({ fetchResults, onState }) {
 
     return {
         run,
-        retry: () => run(lastQuery),
+        retry: () => run(lastQuery, lastFilters),
     };
 }

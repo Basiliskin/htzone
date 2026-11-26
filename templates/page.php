@@ -74,8 +74,23 @@ $chips = static function (string $label) use ($examples, $e): string {
                 <h2 id="results-title" tabindex="-1">מצאנו מוצרים בשבילכם</h2>
                 <span id="count" class="count"></span>
             </div>
+            <div id="filters" class="filters" hidden>
+                <div id="cats" class="cats" role="group" aria-label="סינון לפי קטגוריה" hidden></div>
+                <form id="price" class="price" aria-label="סינון לפי מחיר">
+                    <label for="min">מ־₪</label>
+                    <input id="min" name="min" type="number" inputmode="numeric" min="0" max="9999999" step="1">
+                    <label for="max">עד ₪</label>
+                    <input id="max" name="max" type="number" inputmode="numeric" min="0" max="9999999" step="1">
+                    <button type="submit" class="btn small">סינון</button>
+                </form>
+            </div>
             <div id="notice" class="notice" hidden></div>
             <ul id="grid" class="grid"></ul>
+            <div id="filtered-empty" class="panel">
+                <h2 id="filtered-title" tabindex="-1">אין מוצרים בסינון הזה</h2>
+                <p>נסו קטגוריה אחרת או טווח מחירים רחב יותר.</p>
+                <button type="button" id="clear-filters" class="btn">נקו סינון</button>
+            </div>
         </section>
 
         <section id="empty" class="panel" aria-labelledby="empty-title">

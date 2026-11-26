@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { countText, announcement } from '../../public/assets/render.js';
+import { countText, announcement, priceHints } from '../../public/assets/render.js';
 
 test('count uses the Hebrew singular for one product', () => {
     assert.equal(countText(1), 'מוצר אחד');
@@ -11,6 +11,7 @@ test('every visible state has a screen-reader announcement; loading and idle sta
     assert.equal(announcement({ state: 'results', data: { total: 3 } }), 'נמצאו 3 מוצרים');
     assert.equal(announcement({ state: 'results', data: { total: 1 } }), 'נמצא מוצר אחד');
     assert.equal(announcement({ state: 'empty' }), 'לא נמצאו מוצרים');
+    assert.equal(announcement({ state: 'filtered' }), 'אין מוצרים בסינון הזה');
     assert.equal(announcement({ state: 'error' }), 'אירעה שגיאה בחיפוש');
     assert.equal(announcement({ state: 'short' }), 'הקלידו לפחות 2 תווים כדי לחפש');
     assert.equal(announcement({ state: 'loading' }), '');
@@ -26,4 +27,10 @@ test('a notice (missing model, did you mean) is announced with the count, not on
     const didYouMean = { type: 'did_you_mean', message: 'האם התכוונת: מיקרוגל?', suggestion: 'מיקרוגל' };
     assert.equal(announcement({ state: 'results', data: { total: 5, notice: didYouMean } }), 'נמצאו 5 מוצרים. האם התכוונת: מיקרוגל?');
     assert.equal(announcement({ state: 'results', data: { total: 5, notice: null } }), 'נמצאו 5 מוצרים');
+});
+
+test('price placeholders are the results\' range in whole shekels, rounded outwards (D45)', () => {
+    assert.deepEqual(priceHints({ categories: [], price: { min: 6990, max: 729950 } }), { min: '69', max: '7300' });
+    assert.deepEqual(priceHints({ categories: [], price: null }), { min: '', max: '' });
+    assert.deepEqual(priceHints(undefined), { min: '', max: '' });
 });

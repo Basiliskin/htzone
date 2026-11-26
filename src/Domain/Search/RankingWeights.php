@@ -24,7 +24,7 @@ final readonly class RankingWeights
         public float $qualifier = 0.5,     // share of numbers/units found (only next to a word match)
         public float $latinPrefix = 0.5,   // an English word that only starts a product word ("kettle" → "kettlebell") counts this much (D41)
         public float $minSimilarity = 0.4, // typo fallback: below this a spelling is not "close"
-        public int $limit = 24,
+        public float $strongShare = 0.5,   // filters and chips use only results scoring at least this share of the best (D46)
     ) {
     }
 }

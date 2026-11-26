@@ -309,3 +309,17 @@ How the work was done with Claude, step by step. Prompts are captured verbatim i
 **Work:** step-by-step DevTools instructions given (Incognito, after a warm-up load, Accessibility only, mobile and desktop, optional snapshot of a results page). The user ran it on the live URL.
 **Verified (real output):** a screenshot shows Lighthouse Accessibility **100** for https://htzone.onrender.com/ (start page), plus 10 "additional items to manually check" that Lighthouse doesn't score.
 **Artifacts:** `README.md` (*How it was tested*), `docs/qa-report.md` (AC-5.4 row, F9 closed), `docs/design.md`.
+
+## 2026-11-26 15:10 : developer — category + price filter
+
+**User input:**
+> next "Category + price filter (/developer)"
+> D43 a, D44 a, D45 a
+> a   (D46)
+
+**Options offered:** D43 where to filter (a server after ranking / b browser over the 24 shown / c SQL); D44 chips (a top-level category with counts / b subcategory); D45 price (a two number fields / b fixed price chips / c slider). D46, raised mid-implementation: which products chips and filters use (a strong matches only, when filtering / b cut everywhere / c no cut).
+**Decision:** D43 a, D44 a, D45 a, D46 a.
+**Claude suggestion changed/rejected:** the approved D43 counted all ranked candidates. A new API test showed TV/gaming (25) as the top chip for `שואב אבק`. Claude measured the score distribution (a cut at 50 % of the top score keeps all 15 vacuums), checked that applying it everywhere still passes the 28 relevance rows but shortens 35 of 68 queries, and asked again instead of changing ranking silently. A stated default was also changed: an unknown category is an empty list rather than a 400, because checking it against the catalog needs a DB query for no visitor benefit.
+**Work:** test-first. Domain `SearchFilter` + `InvalidFilter`; `Ranker::strong()` and `RankingWeights::strongShare`; the 24 cap moved from the Ranker to `SearchProducts` (its test was moved, not weakened); Application `Facets`; HTTP `cat/min/max`, `invalid_filter`, `facets` JSON and log fields; UI chips, price form, `filtered` state, URL + history.
+**Verified (real output):** `composer check`: CS 0/79, PHPStan max OK, `OK (209 tests, 10684 assertions)`, with the 28 relevance rows unchanged. JS 21/21. E2E 5/5, and 50/50 with `--repeat-each=10` under CPU load. Mutation checks: no `filtered` state, and a new query keeping the category, each fail an E2E test. Screenshots at 1280 and 360 px: no horizontal overflow. Bugs found on the way: a vacuous price check (0 cards), the count glued to the chip name (flex drops the leading space), the chosen chip off-screen on mobile, and a race where a response wiped a half-typed price.
+**Artifacts:** `src/Domain/Search/{SearchFilter,InvalidFilter,Ranker,RankingWeights}.php`, `src/Application/{Facets,SearchProducts,SearchResult}.php`, `src/Http/{ApiError,SearchResultJson}.php`, `src/Http/Controller/SearchController.php`, `templates/page.php`, `public/assets/{state,api,render,app}.js`, `public/assets/styles.css`, tests (unit, Kernel, JS, E2E), `docs/{decisions,architecture,design,requirements}.md`, `README.md`.

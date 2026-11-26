@@ -138,6 +138,27 @@ main { max-inline-size: 1240px; margin-inline: auto; padding: 0 var(--s5) var(--
 .results-head h2 { margin: 0; font-size: clamp(1.25rem, 3vw, 1.75rem); font-weight: 800; }
 .count { color: var(--muted); }
 .notice { background: var(--notice-bg); color: var(--notice-text); border-radius: var(--radius); padding: var(--s3) var(--s4); margin-block-end: var(--s4); }
+/* Filters (D43–D45): category chips + a price range, above the grid */
+.filters { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3) var(--s5); margin-block-end: var(--s4); }
+.cats { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.cats .chip { font: inherit; font-size: 0.9rem; cursor: pointer; min-block-size: 40px; gap: 0.35em; }
+.cats .chip .n { color: var(--muted); }
+.cats .chip[aria-pressed="true"] .n { color: inherit; }
+.cats .chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #fff; }
+.price { display: flex; align-items: center; gap: var(--s2); }
+.price label { color: var(--muted); font-size: 0.9rem; white-space: nowrap; }
+.price input {
+    inline-size: 6.5rem; min-block-size: 40px; padding: 0 var(--s3); font: inherit; color: var(--text);
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-pill);
+}
+.price input::placeholder { color: var(--muted); }
+.btn.small { min-block-size: 40px; padding: 0 var(--s4); }
+@media (max-width: 559px) {
+    /* One scrollable row of chips instead of three wrapped lines */
+    .cats { flex-wrap: nowrap; overflow-x: auto; inline-size: 100%; padding-block-end: var(--s1); }
+    .cats .chip { flex: none; }
+    .price input { inline-size: 5.5rem; }
+}
 .link { background: none; border: 0; padding: 0; font: inherit; color: var(--focus); text-decoration: underline; cursor: pointer; }
 
 .grid { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s4); grid-template-columns: 1fr; }
@@ -198,8 +219,10 @@ main { max-inline-size: 1240px; margin-inline: auto; padding: 0 var(--s5) var(--
 }
 
 /* Which section shows — decided only by body[data-state] (design §3) */
-#results, #empty, #error, #short { display: none; }
-body[data-state="loading"] #results, body[data-state="results"] #results { display: block; }
+#results, #empty, #error, #short, #filtered-empty { display: none; }
+body[data-state="loading"] #results, body[data-state="results"] #results, body[data-state="filtered"] #results { display: block; }
+body[data-state="filtered"] #filtered-empty { display: block; }
+body[data-state="filtered"] #notice { display: none; }
 body[data-state="loading"] :is(.results-head, #notice) { visibility: hidden; }
 body[data-state="empty"] #empty, body[data-state="error"] #error, body[data-state="short"] #short { display: block; }
 

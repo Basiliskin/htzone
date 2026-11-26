@@ -447,3 +447,19 @@
 ### 2026-11-26T12:49:18.510Z : chat
 
 > [Image #3]
+
+### 2026-11-26T12:50:02.629Z : chat
+
+> commited and pushed - whats can be implemented next if we have time ?
+
+### 2026-11-26T12:50:43.028Z : chat
+
+> next "Category + price filter (/developer)"
+
+### 2026-11-26T12:51:40.711Z : chat
+
+> D43 a, D44 a, D45 a
+
+### 2026-11-26T12:58:11.066Z : chat
+
+> a

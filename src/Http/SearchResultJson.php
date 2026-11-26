@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Htzone\Http;
 
+use Htzone\Application\Facets;
 use Htzone\Application\Notice;
 use Htzone\Application\NoticeType;
 use Htzone\Application\SearchResult;
@@ -25,6 +26,27 @@ final class SearchResultJson
             'total' => count($result->results),
             'results' => array_map(self::product(...), $result->results),
             'notice' => $result->notice === null ? null : self::notice($result->notice),
+            'facets' => self::facets($result->facets),
+        ];
+    }
+
+    /**
+     * Category chips with counts and the price range in agorot, like `price.amount` (D44, D45).
+     *
+     * @return array<string, mixed>
+     */
+    private static function facets(Facets $facets): array
+    {
+        $categories = [];
+        foreach ($facets->categories as $name => $count) {
+            $categories[] = ['name' => $name, 'count' => $count];
+        }
+
+        return [
+            'categories' => $categories,
+            'price' => $facets->minPrice === null || $facets->maxPrice === null
+                ? null
+                : ['min' => $facets->minPrice->minor, 'max' => $facets->maxPrice->minor],
         ];
     }
 
