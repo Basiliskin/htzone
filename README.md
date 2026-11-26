@@ -26,7 +26,8 @@ Full list with reasons: [`docs/decisions.md`](docs/decisions.md).
 
 ## How it was tested
 - **Unit (domain search logic):** a table-driven test of every normalizer rule (prefixes, plurals, final letters, aliases, niqqud, stop-words, qualifiers) and one hand-made test per ranking rule. Each ranking test was confirmed to **fail** when its rule is switched off (mutation check, SESSION-LOG S2).
-- Relevance tests against the real catalog, from the example queries in [`docs/requirements.md` §4](docs/requirements.md), arrive in S3.
+- **Integration:** the SQLite repository against a real temporary DB opened read-only, including hostile input (`" OR 1=1 --`, `'; DROP TABLE`, `NEAR(` …) searched as plain text.
+- **Relevance:** every row of the example-query table ([`docs/requirements.md` §4](docs/requirements.md), the brief's 5 examples + 14 of ours) runs against the real imported catalog, plus a p95 < 100 ms check (real searches take 0.3–5 ms). Two rows failed at first and were fixed in ranking and data, never by relaxing the test (SESSION-LOG S3).
 
 ## Known limitations
 - Prices are synthetic: generated per subcategory range from a hash of the id (`docs/data.md` §3), so within a subcategory they don't reflect the specific model.
@@ -48,4 +49,5 @@ Process log: [`docs/ai-log/SESSION-LOG.md`](docs/ai-log/SESSION-LOG.md) (prompts
 - **Tags written by 10 parallel Claude agents** from one committed guide (`data/ENRICHMENT-GUIDE.md`), verified by a check script, example-query coverage and a human spot-check (`docs/data.md` §5–6).
 - **Rejected in review:** Claude-written tags that implied health claims the products don't make ("קורונה" on an oximeter, "אנטי אייג׳ינג" on an LED mask) and a tag that would make vacuum bags match "שואב אבק".
 - **Self-correction caught by tests:** Claude's planned query cleanup deleted the geresh (דולצ׳ה → דולצה), but SQLite indexes the catalog by splitting at it, so the cleaned query could never match. Found by checking the index's own word list; the query now splits the same way.
+- **Caught by the relevance tests:** for the brief's "מתנה למישהו שאוהב לבשל", Claude's tags said "מתנה לחובבי בישול", which never matches the verb "לבשל", so coffee gift sets ranked first. The fix went into the data (a need tag on 72 cooking products), not into a special case in the code.
 - _More examples added as work progresses._

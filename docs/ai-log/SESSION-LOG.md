@@ -138,3 +138,19 @@ How the work was done with Claude, step by step. Prompts are captured verbatim i
 **Artifacts:** files above, `tests/Unit/Domain/Search/*`, `docs/architecture.md` §2, §4, §6, `docs/decisions.md` (D31–D32), `README.md` (How it was tested, Working with Claude).
 
 **Next step suggested:** `/developer S3 Repository, use case, relevance`
+
+## 2026-11-26 18:30 : developer S3 — repository, use case, relevance
+
+**User input:**
+> /developer S3 Repository, use case, relevance
+
+**Options offered:** none. Every choice was already settled (D14, D15, D17, ADR 0003, architecture §5–§6 bm25 weights and fixture), and this was said before building.
+**Work (test-first):** `Domain\Catalog\ProductRepository` (port); `Infrastructure\Persistence\{FtsQueryBuilder, SqliteProductRepository, ProductRowMapper}`; `Application\{SearchProducts, SearchResult, Notice, NoticeType}`; `tests/Relevance/ExampleQueriesTest` (19 table rows as 21 data sets + p95); `tests/Support/{RealCatalog, FakeProductRepository}`. `CatalogImporter` now writes through `ProductRowMapper` (DRY with the repository's read).
+**Verified (real output):** `composer check`: CS Fixer 0 of 58 files to fix, PHPStan max `[OK] No errors`, PHPUnit `OK (132 tests, 10292 assertions)` (Unit 91, Integration 20, Relevance 21). Mutation check: turning off the category bonus fails row 1 plus its unit test, never setting missing-model fails row 2 plus its unit test, and removing quote doubling fails the injection test. Brief queries on the dev DB take 0.3–5.2 ms.
+**Relevance failures and fixes (19/21 passed on the first run):**
+1. Row 1 "שואב אבק": P0987, a car vacuum in category `רכב`, tied with the real vacuums (7.49 vs 7.50, bm25 noise). Fix: a `categoryBonus` (0.5) when query words appear in the category/subcategory, with a unit test where only that bonus can beat the id tie-break. Claude's first version of that test was unfair: with two candidates, min-max scaling makes any bm25 difference worth a full point, so it was rewritten with equal bm25.
+2. Row 4 "מתנה למישהו שאוהב לבשל": no tag contained "לבשל" or "אוהב" (the tags said "מתנה לחובבי בישול"). Kitchen items matched only "מתנה" and lost to coffee gift sets. Fix in the data, not the code: "אוהב לבשל" added to the 72 products in the 5 cooking subcategories; `bin/check-enrichment` still passes. Logged in `docs/data.md` §6.
+**Claude suggestion changed:** qualifiers are emitted without `*` in the FTS query (the spec said every variant ≥ 2 chars gets `*`), to match the Ranker's whole-word rule. `Notice` became a value object plus a `NoticeType` enum, because a PHP enum can't carry the suggestion. Two clumsy test helpers flagged by PHPStan (a by-reference out-parameter, a `static` local) were rewritten.
+**Artifacts:** files above, `data/enrichment.jsonl`, `docs/architecture.md` §2, §5, §6, `docs/data.md` §6–7, `README.md` (How it was tested, Working with Claude).
+
+**Next step suggested:** `/developer S4 HTTP API and production concerns`

@@ -92,17 +92,20 @@ final readonly class Ranker
     private function score(Product $product, float $base, array $words, array $qualifiers): array
     {
         $nameWords = array_values(array_unique(Tokenizer::words($product->name)));
+        $categoryWords = array_values(array_unique(Tokenizer::words($product->category . ' ' . $product->subcategory)));
         $fieldWords = array_values(array_unique([
             ...$nameWords,
-            ...Tokenizer::words(implode(' ', [$product->brand ?? '', $product->category, $product->subcategory, ...$product->tags])),
+            ...$categoryWords,
+            ...Tokenizer::words(implode(' ', [$product->brand ?? '', ...$product->tags])),
         ]));
 
-        $coverage = $exact = $inName = 0.0;
+        $coverage = $exact = $inName = $inCategory = 0.0;
         foreach ($words as $term) {
             $best = self::bestStrength($term, $fieldWords);
             $coverage += $best;
             $exact += $best >= 1.0 ? 1.0 : 0.0;
             $inName += self::bestStrength($term, $nameWords);
+            $inCategory += self::bestStrength($term, $categoryWords);
         }
         $count = count($words);
         $coverage /= $count;
@@ -126,6 +129,7 @@ final readonly class Ranker
             + $w->coverage * $coverage
             + $w->exact * $exact / $count
             + $w->name * $inName / $count
+            + $w->category * $inCategory / $count
             + ($brandHit ? $w->brand : 0.0)
             + ($coverage > 0.0 && $qualifiers !== [] ? $w->qualifier * $qualifierHits / count($qualifiers) : 0.0);
 

@@ -62,14 +62,16 @@ src/
       Trigrams.php            # trigram split + similarity (typo fallback)
   Application/
     SearchProducts.php        # use case: orchestrates normalize → candidates → rank → notice
-    SearchResult.php          # DTO: query, results[], notice?
-    Notice.php                # enum: MissingModel | DidYouMean (+ suggestion)
+    SearchResult.php          # DTO: query, results[], notice?, usedFallback
+    Notice.php                # value object: NoticeType + suggestion (did_you_mean only)
+    NoticeType.php            # enum: MissingModel | DidYouMean (the API's notice.type)
   Infrastructure/
     Config.php                # reads env (APP_ENV, DB_PATH, LOG_LEVEL) with defaults
     Persistence/
       SqliteConnection.php    # PDO factory (read-only at runtime, read-write for import)
       SqliteProductRepository.php
       FtsQueryBuilder.php     # SearchTerm[] → safe FTS5 MATCH string
+      ProductRowMapper.php    # Product ↔ products row, shared by importer and repository
       MigrationRunner.php
     Import/
       CsvCatalogReader.php    # BOM, validation, row → array
@@ -174,7 +176,7 @@ CREATE VIRTUAL TABLE products_trigram USING fts5(
 );
 ```
 
-- **Field weights** are applied as `bm25(products_fts, 10.0, 8.0, 6.0, 3.0, 1.0)` (name, brand, tags, category, description) and live in `RankingWeights` as well, so they're tuned in one place.
+- **Field weights** are applied as `bm25(products_fts, 10.0, 8.0, 6.0, 3.0, 1.0)` (name, brand, tags, category, description) and live in `RankingWeights::$fieldWeights`, so they're tuned in one place.
 - The FTS tables are **regular FTS5 tables filled by the importer** (`INSERT … SELECT rowid, …`), sharing the `products` rowid so a match joins straight back to its product. *Changed in S1:* external-content mode reads columns **by name** from `products`, but the `category` search column is category + subcategory combined, so `rebuild` would silently index the category alone. The duplicate copy of 1000 rows costs a few hundred KB. No triggers are needed because only the importer writes.
 - **Migration runner:**
   - creates `schema_migrations(version TEXT PRIMARY KEY, applied_at TEXT NOT NULL)`;
@@ -202,7 +204,7 @@ GET /api/search?q=…
 ```
 
 **FtsQueryBuilder** (the safety boundary):
-- Every variant is emitted as a quoted string with `"` doubled, then `*` for start-of-word matching when it has ≥ 2 characters.
+- Every variant is emitted as a quoted string with `"` doubled, then `*` for start-of-word matching when it has ≥ 2 characters. *Changed in S3:* qualifiers get no `*`, mirroring the Ranker's whole-word rule ("16" doesn't fetch "160").
 - A term becomes `("orig"* OR "v1"* OR …)`, and terms are joined with `OR` (D17).
 - No raw user text ever reaches MATCH unquoted, so FTS5 operators (`AND OR NOT NEAR ^ : * ( )`) are inert.
 - The MATCH string is bound as a PDO parameter.
@@ -214,6 +216,7 @@ GET /api/search?q=…
 3. `exactBonus` for each term matched at full strength (as typed, or an alias). This favours "כלבים" over the guess "כלב".
 4. `brandBonus` if a term equals the Product's brand (case-insensitive, aliases applied).
 5. `nameBonus` if a term matches in the name (stronger than matching only in tags or description).
+   `categoryBonus` (*added in S3*, weight 0.5) for terms found in the category/subcategory: the query names the product type. Found by relevance row 1, where a car vacuum filed under `רכב` tied with the real vacuums.
 6. **Qualifiers** (numbers and units) must equal a whole word ("16" doesn't match "160"), and are also looked up in the attributes. They add a small bonus only when matched alongside at least one non-qualifier term. A candidate matching only qualifiers is dropped whenever any candidate matches a non-qualifier. This stops "iPhone 16" from surfacing pans and laptops through "16". A query of numbers only treats them as ordinary terms.
    Candidates the index found only through the description (coverage 0, no qualifier) are kept, below every field match.
 7. Ties are broken by `id` ascending, so the order is deterministic and the tests are stable.

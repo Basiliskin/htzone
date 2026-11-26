@@ -54,9 +54,11 @@ Final real output:
 | Example-query coverage | P0684 travel vacuum bags tagged "בלי שואב אבק" → would match "שואב אבק" | Removed |
 | Example-query coverage | Row 5 (dog hair on the sofa) expects P0207, but the hand vacuum "for sofas" had no hair tag | Added "שערות על הספה" / "hair on sofa" |
 | Example queries vs tags | אייפון/iphone on P0401, P0407, P0413 (+3 accessories as "מטען לאייפון", "iphone case": correct, ranking decides) · dog hair: P0950, P0207, P0203, P0225 · cooking gift: 24 products · coffee gift: 23 · "מיקרוגל" on P0279, P0285 (typo-fallback target) | — |
+| Relevance test, S3 (row 4 "מתנה למישהו שאוהב לבשל") | No tag had "לבשל" or "אוהב": the 24 cooking-gift tags say "מתנה לחובבי בישול", and the verb never reaches the noun. Kitchen items matched only "מתנה", so coffee gift sets won | Added "אוהב לבשל" to the 72 products in the 5 cooking subcategories (small appliances, pots and pans, baking, knives, gadgets), not serving or storage. Check script still passes (avg HE tags 10.7 → 10.8) |
 | Random spot-check, 20 products (seed 2026) | All accepted by the developer. Two noted as harmless: P0525 camping projector also "מקרן לבית"; P0917 toy kitchen "משחק בישול" (no cooking-gift tag, ranks below real kitchen items) | None |
 
 ## 7. Known weaknesses
+- Hebrew verb forms aren't linked to their nouns (לבשל ≠ בישול); the tags carry the common need phrasings instead (§6).
 - Tags cover typical phrasings. An unusual phrasing that no tag or description word covers will miss (README: embeddings under "With more time").
 - Quality was verified by sampling (20 random products + every example query + every agent-flagged doubt), not by reading all 10,700 tags.
 - Prices are synthetic and blind to the product within a subcategory (§3).

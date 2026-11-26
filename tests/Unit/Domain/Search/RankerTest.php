@@ -80,6 +80,14 @@ final class RankerTest extends TestCase
         self::assertSame(['P0002', 'P0001'], $ids);
     }
 
+    public function testTheProductTypeInTheSubcategoryBreaksATie(): void
+    {
+        $vacuum = new Candidate(new Product('P0002', 'שואב אבק אלחוטי', null, 'מוצרי חשמל לבית', 'שואבי אבק ורובוטים', '', '', 'https://example.com/x.jpg', Money::fromShekels(100), []), -1.0);
+        $ids = self::rank('שואב אבק', [self::candidate('P0001', 'שואב אבק אלחוטי לרכב'), $vacuum]);
+
+        self::assertSame(['P0002', 'P0001'], $ids, 'without the bonus the id tie-break would put P0001 first (example row 1: a car vacuum filed under "רכב")');
+    }
+
     public function testProductsMatchingOnlyANumberAreDropped(): void
     {
         $ids = self::rank('iPhone 16', [

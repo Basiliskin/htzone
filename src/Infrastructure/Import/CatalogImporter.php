@@ -6,6 +6,7 @@ namespace Htzone\Infrastructure\Import;
 
 use Htzone\Domain\Catalog\Product;
 use Htzone\Infrastructure\Persistence\MigrationRunner;
+use Htzone\Infrastructure\Persistence\ProductRowMapper;
 
 /**
  * CSV + enrichment + generated prices → SQLite (architecture §7).
@@ -14,8 +15,6 @@ use Htzone\Infrastructure\Persistence\MigrationRunner;
  */
 final readonly class CatalogImporter
 {
-    private const TAG_SEPARATOR = ' | ';
-
     public function __construct(
         private \PDO $pdo,
         private MigrationRunner $migrations,
@@ -145,19 +144,7 @@ final readonly class CatalogImporter
                  VALUES (:id, :name, :brand, :category, :subcategory, :description, :attributes, :image_url, :price_minor, :currency, :tags)',
             );
             foreach ($products as $product) {
-                $insert->execute([
-                    'id' => $product->id,
-                    'name' => $product->name,
-                    'brand' => $product->brand,
-                    'category' => $product->category,
-                    'subcategory' => $product->subcategory,
-                    'description' => $product->description,
-                    'attributes' => $product->attributes,
-                    'image_url' => $product->imageUrl,
-                    'price_minor' => $product->price->minor,
-                    'currency' => $product->price->currency,
-                    'tags' => implode(self::TAG_SEPARATOR, $product->tags),
-                ]);
+                $insert->execute(ProductRowMapper::toRow($product));
             }
             // Search indexes share the products rowid, so a match joins straight back to its product.
             $this->pdo->exec(
