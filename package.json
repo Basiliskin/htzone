@@ -1,0 +1,12 @@
+{
+  "name": "htzone-frontend",
+  "private": true,
+  "type": "module",
+  "description": "No build step: public/assets/*.js is served as-is. This file only runs the JS tests (D36).",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test \"tests/js/**/*.test.js\""
+  }
+}

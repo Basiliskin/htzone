@@ -62,7 +62,7 @@ The chosen design is **D20 (c)**: Variant A's centred hero, matching the referen
 | `--placeholder` | `#eceef1` | image box, skeleton |
 | radius | `--radius-lg 20px` (cards, panels), `--radius 14px`, `--radius-pill 999px` (search, chips, buttons) | |
 | spacing | `--s1…--s8` = 4, 8, 12, 16, 24, 32, 48, 72px | |
-| font | `"Heebo", system-ui, -apple-system, "Segoe UI", Arial, sans-serif` | **Heebo is self-hosted** (D21): `public/assets/fonts/heebo-var.woff2`, a variable font covering Hebrew + Latin, weights 400–800, `font-display: swap`, preloaded. Licence: SIL OFL, with the licence file next to it. |
+| font | `"Heebo", system-ui, -apple-system, "Segoe UI", Arial, sans-serif` | **Heebo is self-hosted** (D21): `public/assets/fonts/heebo-hebrew.woff2` + `heebo-latin.woff2` (variable, from `@fontsource-variable/heebo` 5.3.0, 12 + 30 KB, split by `unicode-range` so a Hebrew-only page loads only the first; *changed in S5* from one file), weights 400–800, `font-display: swap`, preloaded. Licence: SIL OFL, with the licence file next to it. |
 | type scale | h1 `clamp(2rem, 6vw, 3.4rem)` 800 · results h2 `clamp(1.25rem, 3vw, 1.75rem)` 800 · price 1.6rem 800 (mobile 1.2rem) · name 1.05rem 500 · body 1rem | |
 | motion | 150–250ms ease; skeleton shimmer 1.2s; **all off** under `prefers-reduced-motion` | |
 

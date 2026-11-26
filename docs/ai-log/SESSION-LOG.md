@@ -170,3 +170,19 @@ How the work was done with Claude, step by step. Prompts are captured verbatim i
 **Artifacts:** files above, tests in `tests/{Integration/Http, Unit/Http, Unit/Infrastructure/Logging, Unit/Infrastructure/Persistence}`, `docker/apache.conf`, `Dockerfile`, `.github/workflows/ci.yml`, `phpstan.neon`, `docs/architecture.md` §2, §8, §10, `docs/decisions.md` (D33–D34), `README.md`.
 
 **Next step suggested:** `/developer S5 UI`
+
+## 2026-11-26 21:00 : developer S5 — UI
+
+**User input:**
+> /developer S5 UI
+> agree to recomendations
+
+**Options offered:** D35 meaning of "works with JS off" (a form + noscript note / b server-rendered results / c HTML fragments) · D36 JS testing (a `node --test` for pure modules / b manual only until Playwright / c jsdom + Vitest). Stated defaults: Heebo as two `unicode-range` subsets from fontsource 5.3.0, static `fallback.svg`, chips rendered by PHP.
+**Decision:** D35 a · D36 a, plus the defaults.
+**Work (test-first for logic):** `public/assets/{state.js, api.js, render.js, dom.js, app.js, styles.css}`, `public/assets/fonts/*` (+ OFL), `public/assets/img/{fallback,favicon}.svg`, `templates/page.php`, `tests/js/{state,api,render}.test.js`, `package.json` (test script only), 3 new page tests in `KernelTest`, CI job `frontend`, `docker/apache.conf` (`no-cache` for JS/CSS).
+**Verified (real output):** `composer check`: CS Fixer 0 of 74, PHPStan max `[OK] No errors`, PHPUnit `OK (172 tests, 10540 assertions)`; `npm test` 15/15 pass. Chrome (localhost): every state (results, missing-model notice, did-you-mean, empty, short, error → retry with focus on the results heading), `/` and `Esc`, Back/Forward, broken image → fallback, `<script>` / `" OR 1=1 --` as text, Heebo loaded, no CSP violations in the console. 360 px through DevTools device emulation: scrollWidth = 360 in idle/results/empty/notice, list cards. Prod image serves every asset with the right type. Mutation check: removing the stale-response guard, the abort, or the "stay committed" history rule each fails a test (the last only after a test was added).
+**Not done:** Lighthouse accessibility score: Lighthouse isn't installed and wasn't downloaded. Run it from Chrome DevTools before `/qa` and note the score in the README.
+**Claude suggestion changed:** architecture §8 cached `/assets/*` for a week; with unhashed filenames that keeps old JS after a deploy, so JS/CSS are now `no-cache` (ETag 304). Chips became `/?q=` links instead of buttons, so they work without JS. Added `historyMethod()` because "replace while typing" alone would overwrite the previous submitted query and break Back.
+**Artifacts:** files above, `docs/decisions.md` (D35–D36), `docs/architecture.md` §2, §8, §9, `docs/design.md` §2 (font files), `docs/stack.md`, `README.md`.
+
+**Next step suggested:** `/developer S6 E2E`

@@ -100,6 +100,12 @@ data/
 tests/
   Unit/ Integration/ Relevance/   # PHPUnit
   Fixtures/                       # tiny CSV + JSONL for integration tests
+public/assets/
+  app.js api.js state.js render.js dom.js styles.css   # ES modules, no build step (§9)
+  fonts/ heebo-hebrew.woff2 heebo-latin.woff2 OFL.txt  # self-hosted, D21
+  img/ fallback.svg favicon.svg
+templates/page.php            # HTML shell
+tests/js/                     # node --test (D36)
 e2e/
   search.spec.ts              # Playwright
 docker/
@@ -250,7 +256,7 @@ It runs in three places:
 | GET | `/` (and any non-API path) | 200 HTML (`templates/page.php`) | — | `no-cache` |
 | GET | `/api/search?q=` | 200 JSON (below) | 400 `query_too_short` / `query_missing`, 405, 500 | `public, max-age=60` |
 | GET | `/health` | 200 `{"status":"ok","products":1000}` | 503 `{"status":"unavailable"}` | `no-store` |
-| GET | `/assets/*` | static file (Apache) | 404 | `public, max-age=604800` |
+| GET | `/assets/*` | static file (Apache) | 404 | fonts/images `public, max-age=604800`; `.js`/`.css` `no-cache` (ETag → 304) |
 | GET | `/api/*` other | — | 404 `not_found` (JSON) | — |
 
 **Search response**
@@ -291,6 +297,8 @@ It runs in three places:
 **Request log** (one JSON line to stdout per request, through `JsonLogger`): `ts, level, msg="request", method, path, status, duration_ms, q (≤100 chars), results, notice, fallback (bool)`. Errors also log `exception` class and message, never sent to the client.
 
 ## 9. Frontend (detailed in `docs/design.md`)
+
+*Changed in S5:* `.js`/`.css` are served `no-cache` (revalidated by ETag, so usually a 304) instead of a week: with no build step the filenames never change, so a week-long cache would keep old code after a deploy. Without JS the page is a basic form (D35); chips are `/?q=` links. `state.js` also holds `createSearch()` (abort + drop stale responses) and `historyMethod()` (typing replaces the history entry, a submitted query commits it); both are unit-tested with `node --test` (D36).
 
 - `templates/page.php` renders the shell: `<html lang="he" dir="rtl">`, the search form (works without JS as `GET /?q=`), and one `<script type="module" src="/assets/app.js">`. It has no inline script or style, to satisfy the CSP.
 - `api.js` does `search(q, signal)` with `fetch` and an `AbortController`, so a newer query cancels an older request (AC-3.1). It maps non-2xx responses to a typed error.

@@ -313,6 +313,41 @@ final class KernelTest extends TestCase
         self::assertStringContainsString('&quot;&gt;&lt;script&gt;', $response->body);
     }
 
+    public function testPageHasNoInlineScriptOrStyleSoTheCspHolds(): void
+    {
+        $body = $this->get('/')->body;
+
+        self::assertSame(1, preg_match_all('/<script\b/i', $body), 'exactly one script tag');
+        self::assertStringContainsString('<script type="module" src="/assets/app.js"></script>', $body);
+        self::assertStringNotContainsString('<style', $body);
+        self::assertDoesNotMatchRegularExpression('/\sstyle=|\son[a-z]+=/i', $body, 'no style="" or onclick="" attributes');
+    }
+
+    public function testPageWorksWithoutJavaScript(): void
+    {
+        $body = $this->get('/', ['q' => 'שואב אבק'])->body;
+
+        // the form round-trips the query (D35) …
+        self::assertStringContainsString('action="/" method="get"', $body);
+        self::assertStringContainsString('name="q"', $body);
+        self::assertStringContainsString('value="שואב אבק"', $body);
+        self::assertStringContainsString('<noscript>', $body);
+        // … and the suggestion chips are real links (landing + no-results panel)
+        self::assertSame(2, substr_count($body, 'href="/?q=%D7%A9%D7%95%D7%90%D7%91+%D7%90%D7%91%D7%A7"'));
+    }
+
+    public function testPageHasEverySectionTheScriptNeeds(): void
+    {
+        $body = $this->get('/')->body;
+
+        // ids looked up by public/assets/app.js through byId() — a rename must break a test, not the page
+        foreach (['search-form', 'q', 'clear', 'live', 'grid', 'count', 'notice', 'empty-q', 'retry', 'results-title', 'empty-title', 'error-title', 'short-title'] as $id) {
+            self::assertStringContainsString('id="' . $id . '"', $body, "#$id");
+        }
+        self::assertStringContainsString('<body data-state="idle">', $body);
+        self::assertStringContainsString('aria-live="polite"', $body);
+    }
+
     /**
      * @param array<string, mixed> $query
      */

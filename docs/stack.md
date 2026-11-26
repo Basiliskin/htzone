@@ -29,6 +29,7 @@ Project-specific input for the generic role skills in `.claude/skills/`. Command
 | Static analysis | `docker compose exec app vendor/bin/phpstan analyse` |
 | Format check / fix | `docker compose exec app vendor/bin/php-cs-fixer fix --dry-run --diff` / `... fix` |
 | Step debugging (D27) | `XDEBUG_MODE=debug docker compose up -d`, then VS Code "Listen for Xdebug (Docker)" (`.vscode/launch.json`, port 9003, PHP Debug extension). Back to normal: `docker compose up -d` |
+| JS unit tests (D36) | `npm test` (= `node --test`, Node ≥ 22, no `npm install` needed) |
 | E2E _(S6)_ | `npx playwright test` (against `http://localhost:8080`) |
 | Build / run prod image | `docker build -t htzone .` / `docker run --rm -p 8080:8080 htzone` |
 | Open | http://localhost:8080 (compose maps 8080 → container 8080) |
