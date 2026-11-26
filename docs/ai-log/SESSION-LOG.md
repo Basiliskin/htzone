@@ -201,3 +201,21 @@ How the work was done with Claude, step by step. Prompts are captured verbatim i
 **Artifacts:** files above, `.github/workflows/ci.yml`, `docs/decisions.md` (D37–D38), `docs/stack.md`, `README.md`.
 
 **Next step suggested:** `/devops deploy per docs/stack.md and verify the live site`
+
+## 2026-11-26 14:20 : devops — deploy and live verification
+
+**User input:**
+> /devops deploy per docs/stack.md and verify the live site
+> I commited and pushed
+> please use /Users/dimitrykatz/workspace/nimvarya mcp to configure what ever required
+> done (after entering the GitHub 2FA code)
+> I signed please create the job
+
+**Options offered:** none. Hosting, image and CI were settled (D5, D10, D26, D28, D38). Stated defaults: Render Blueprint `render.yaml` (free, Frankfurt, `healthCheckPath: /health`, `autoDeployTrigger: checksPass`), Docker `HEALTHCHECK`, `PORT` added to `.env.example`. One question asked: may Claude click "Authorize" for the Render GitHub app? → yes.
+**Work:** `Dockerfile` HEALTHCHECK, `render.yaml`, `.env.example` (committed by the user as `6a5330f`). In the browser through the nimvarya MCP: Render Blueprint → GitHub app installed on **only** `Basiliskin/htzone` (the picker had added it twice; the duplicate was removed before Install) → Blueprint `htzone` deployed. The user entered the GitHub sudo-mode 2FA code themselves. cron-job.org job "htzone keep-awake" (`GET /health` every 10 min), created disabled and enabled after the cold-start measurement.
+**Verified (real output):** CI on `f011c0c` (S6) and `6a5330f`: all 3 jobs green, E2E included. Local prod image with `PORT=10000`: Docker health `healthy`, iPhone search 200 in 6 ms, `www-data`, `/app` not writable, DB `-r--r--r--`, 522 MB. Secrets: no `.env`, keys or tokens in the tree or history. Live https://htzone.onrender.com: up 31 s after the build started; `/health` `{"status":"ok","products":1000}`; 17/18 example queries 200 in 108–145 ms with the same top results as the relevance table (rows 1–17); headers (one CSP, nosniff, referrer, permissions) on page, API and assets; HTTP → 301 HTTPS; Playwright E2E against live: 3 passed; nimvarya screenshot: RTL, Heebo, placeholder images, `₪2,999`. Cold start after 17.5 min idle: **12.4 s**; warm `/health` 0.11 s, search 0.11 s.
+**Found:** (1) Render's Cloudflare edge returns its own 403 "Blocked" page for SQL-injection-looking queries (`" OR 1=1 --`, `'; DROP TABLE`); the app never sees them, so the UI shows the error panel. Locally and in tests they are searched as text (row 18 passes). Recorded under Known limitations; can't be configured on the free plan. (2) No `Strict-Transport-Security` header live (Render doesn't add one) → for `/qa`. (3) GitHub warns that the Actions in the workflow target deprecated Node 20 → for `/qa`.
+**Claude suggestion changed:** the cron job was created disabled so the ping wouldn't spoil the cold-start measurement. `typeText` set the cron-job.org fields visually but not in the React form ("URL not valid"); re-entered with real keyboard input (`sendKeys`).
+**Artifacts:** `Dockerfile`, `render.yaml`, `.env.example`, `README.md` (Live, Deploy, Known limitations), `docs/stack.md` (Hosting, Deploy, Live E2E).
+
+**Next step suggested:** `/qa verify the live site and the repo against docs/requirements.md, audit security and architecture, and check publish readiness`

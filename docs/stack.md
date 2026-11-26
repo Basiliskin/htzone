@@ -14,7 +14,7 @@ Project-specific input for the generic role skills in `.claude/skills/`. Command
 | Tests | PHPUnit (unit, integration, relevance), Playwright (one E2E) |
 | Runtime | `php:8.3.37-apache-trixie` (mod_php, SQLite 3.46.1) in Docker. One `Dockerfile`, stages `dev` (Composer + Xdebug, project mounted) and `prod` (code baked in, OPcache, read-only code) (D18, D26). Apache runs as `www-data` on port **8080**; DB built inside the image in S1 |
 | CI | GitHub Actions, inside the same `dev` image (D28): composer validate → format check → PHPStan → PHPUnit → enrichment check → build `prod` image + smoke test (200, CSP header, non-root) → Playwright E2E against that container (D38) |
-| Hosting | Render free web service (Docker), keep-awake ping to `/health` |
+| Hosting | Render free web service (Docker), Blueprint `render.yaml`, https://htzone.onrender.com, auto-deploy after CI passes, keep-awake ping to `/health` (cron-job.org, every 10 min) |
 
 ## Commands (confirmed in S0)
 | Task | Command |
@@ -34,6 +34,8 @@ Project-specific input for the generic role skills in `.claude/skills/`. Command
 | Build / run prod image | `docker build -t htzone .` / `docker run --rm -p 8080:8080 htzone` |
 | Open | http://localhost:8080 (compose maps 8080 → container 8080) |
 | Logs | `docker compose logs -f app` |
+| Deploy | `git push origin main` → CI green → Render builds `prod` and switches when `/health` is 200. Manual: Render dashboard → htzone → Manual Deploy |
+| Live E2E | `E2E_BASE_URL=https://htzone.onrender.com npm run e2e` |
 
 ## Hooks (`.claude/settings.json`)
 - `UserPromptSubmit` → `.claude/hooks/log-prompt.mjs`: appends each prompt to `docs/ai-log/PROMPTS.md` (skips `/interview`).

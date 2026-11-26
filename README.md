@@ -2,7 +2,7 @@
 
 Search a 1000-product catalog in Hebrew, English or both — by product name or by describing a need.
 
-- **Live:** _TBD (Render)_ — free tier: the first load after a quiet period may take ~30–50 s.
+- **Live:** https://htzone.onrender.com (Render free tier; try one of the example chips). After 15 min without traffic the service sleeps, and the first request takes about 12 s to wake it (measured: 12.4 s cold, 0.11 s warm). A keep-awake ping is on during the review.
 - **Stack:** PHP 8.3 (no framework) · SQLite + FTS5 · vanilla JS/CSS (RTL) · Docker · GitHub Actions.
 
 ## Run & load catalog
@@ -17,6 +17,8 @@ npm ci && npx playwright install chromium    # once, for the E2E
 npm run e2e                                  # Playwright E2E against http://localhost:8080 (E2E_BASE_URL to change)
 ```
 The production image builds the same database during `docker build` and ships it read-only. All commands: [`docs/stack.md`](docs/stack.md).
+
+**Deploy (live):** `render.yaml` is a Render Blueprint: one free Docker web service built from the Dockerfile's `prod` stage, health check `/health`. A push to `main` deploys automatically **only after GitHub Actions CI is green** (`autoDeployTrigger: checksPass`), so a failing test or E2E never reaches the live site. Keep-awake: a free [cron-job.org](https://cron-job.org) job calls `GET https://htzone.onrender.com/health` every 10 minutes during the review period.
 
 API (contract in [`docs/architecture.md` §8](docs/architecture.md)): `GET /api/search?q=…` → `{query,total,results[],notice}`, `GET /health` → `{"status":"ok","products":1000}`. Errors are always `{"error":{"code","message"}}` (400 `query_missing`/`query_too_short`, 404, 405, 500 `internal_error`, never a stack trace). Every request writes one JSON log line to stdout (`docker compose logs -f app`). Config comes from env only (`APP_ENV`, `DB_PATH`, `LOG_LEVEL`, see `.env.example`); there are no secrets.
 
@@ -46,6 +48,8 @@ Full list with reasons: [`docs/decisions.md`](docs/decisions.md).
 - Images are text placeholders from the provided CSV.
 - Meaning-based search depends on tag coverage; unusual phrasings not covered by tags can miss.
 - Without JavaScript the page is a working form that keeps the query, but shows no results (D35).
+- Free hosting: after 15 min idle the first request waits for a cold start (measured above) unless the keep-awake ping is running.
+- On the live site, Render's Cloudflare edge blocks queries that look like SQL injection (`" OR 1=1 --`, `'; DROP TABLE`) with its own 403 HTML page before they reach the app, so the UI shows the error panel. The app itself treats them as plain text (integration and relevance tests, and locally); `<script>` and other input pass through normally.
 - No rate limiting or pagination (24 results max); query-string garbage such as `<script>alert(1)</script>` still returns loose prefix matches rather than nothing.
 
 ## With more time
