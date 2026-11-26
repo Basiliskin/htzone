@@ -101,11 +101,11 @@ final readonly class Ranker
 
         $coverage = $exact = $inName = $inCategory = 0.0;
         foreach ($words as $term) {
-            $best = self::bestStrength($term, $fieldWords);
+            $best = $this->bestStrength($term, $fieldWords);
             $coverage += $best;
             $exact += $best >= 1.0 ? 1.0 : 0.0;
-            $inName += self::bestStrength($term, $nameWords);
-            $inCategory += self::bestStrength($term, $categoryWords);
+            $inName += $this->bestStrength($term, $nameWords);
+            $inCategory += $this->bestStrength($term, $categoryWords);
         }
         $count = count($words);
         $coverage /= $count;
@@ -114,7 +114,7 @@ final readonly class Ranker
         if ($qualifiers !== []) {
             $qualifierWords = [...$fieldWords, ...Tokenizer::words($product->attributes)];
             foreach ($qualifiers as $term) {
-                $qualifierHits += self::bestStrength($term, $qualifierWords) > 0.0 ? 1 : 0;
+                $qualifierHits += $this->bestStrength($term, $qualifierWords) > 0.0 ? 1 : 0;
             }
         }
 
@@ -137,25 +137,32 @@ final readonly class Ranker
     }
 
     /**
-     * The strongest variant of the term that starts a word (like the index's prefix search);
-     * numbers must match a whole word, so "16" doesn't match "160".
+     * The strongest variant of the term that starts a word (like the index's prefix search).
+     * Numbers must match a whole word, so "16" doesn't match "160". An English variant that only
+     * starts a word counts less (D41): "kettle" is weaker in "kettlebell" than in "kettle", but a
+     * half-typed "macb" still finds "macbook". Hebrew keeps full strength: its plurals and construct
+     * forms are prefix matches (D3).
      *
      * @param list<string> $words
      */
-    private static function bestStrength(SearchTerm $term, array $words): float
+    private function bestStrength(SearchTerm $term, array $words): float
     {
         $best = 0.0;
         foreach ($term->variants as $variant) {
             if ($variant->strength <= $best) {
                 continue;
             }
+            $wholeWordOnly = $term->isQualifier || mb_strlen($variant->text) < 2;
+            $prefixStrength = preg_match('/^\p{Latin}/u', $variant->text) === 1
+                ? $variant->strength * $this->weights->latinPrefix
+                : $variant->strength;
             foreach ($words as $word) {
-                $hit = $term->isQualifier || mb_strlen($variant->text) < 2
-                    ? $word === $variant->text
-                    : str_starts_with($word, $variant->text);
-                if ($hit) {
-                    $best = $variant->strength;
+                if ($word === $variant->text) {
+                    $best = $variant->strength;   // a whole word: the most this variant can give
                     break;
+                }
+                if (!$wholeWordOnly && str_starts_with($word, $variant->text)) {
+                    $best = max($best, $prefixStrength);
                 }
             }
         }

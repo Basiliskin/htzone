@@ -22,6 +22,7 @@ final readonly class RankingWeights
         public float $name = 1.5,          // share of words found in the name itself
         public float $category = 0.5,      // share of words found in the category/subcategory: the query names the product type
         public float $qualifier = 0.5,     // share of numbers/units found (only next to a word match)
+        public float $latinPrefix = 0.5,   // an English word that only starts a product word ("kettle" → "kettlebell") counts this much (D41)
         public float $minSimilarity = 0.4, // typo fallback: below this a spelling is not "close"
         public int $limit = 24,
     ) {

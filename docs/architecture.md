@@ -222,7 +222,7 @@ GET /api/search?q=…
 
 **Ranker rules** (all numbers in `RankingWeights`, tuned against the relevance tests):
 1. `base` = −bm25, min-max normalized across the candidates to 0..1.
-2. `coverage` = Σ (strength of the strongest variant that starts a word in name, brand, tags or category/subcategory) ÷ non-qualifier terms (D31). Weight: high, so this is the main signal. Words are split with the same `Tokenizer` as the query.
+2. `coverage` = Σ (strength of the strongest variant that starts a word in name, brand, tags or category/subcategory) ÷ non-qualifier terms (D31). Weight: high, so this is the main signal. Words are split with the same `Tokenizer` as the query. *Changed after QA (D41):* an English (Latin) variant that only starts a word counts `latinPrefix` × its strength (0.5), so `kettle` is weaker in "kettlebell" or the brand "Kettler" than in "kettle", and it doesn't count for `exactBonus`; a half-typed `macb` still matches. Hebrew prefix matches keep full strength (plurals and construct forms depend on them).
 3. `exactBonus` for each term matched at full strength (as typed, or an alias). This favours "כלבים" over the guess "כלב".
 4. `brandBonus` if a term equals the Product's brand (case-insensitive, aliases applied).
 5. `nameBonus` if a term matches in the name (stronger than matching only in tags or description).

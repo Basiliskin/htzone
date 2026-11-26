@@ -134,6 +134,40 @@ final class RankerTest extends TestCase
         self::assertSame(['P0002', 'P0001'], $ids);
     }
 
+    public function testAnEnglishWholeWordBeatsAWordItOnlyStarts(): void
+    {
+        $ids = self::rank('kettle', [
+            self::candidate('P0001', 'קטלבל', bm25: -12.0, tags: ['kettlebell']),
+            self::candidate('P0002', 'אופניים', bm25: -12.0, brand: 'Kettler'),
+            self::candidate('P0003', 'קומקום', bm25: -1.0, tags: ['kettle']),
+        ]);
+
+        self::assertSame('P0003', $ids[0], 'kettle is a whole word only in P0003 (D41)');
+    }
+
+    public function testAHalfTypedEnglishWordStillCountsAsAMatch(): void
+    {
+        // Search runs while typing: "macb" must still beat a product that matched only in its description.
+        $ids = self::rank('macb', [
+            self::candidate('P0001', 'כרית', bm25: -15.0),
+            self::candidate('P0002', 'מחשב נייד', bm25: -1.0, tags: ['macbook']),
+        ]);
+
+        self::assertSame(['P0002', 'P0001'], $ids);
+    }
+
+    public function testHebrewPrefixMatchesKeepFullStrength(): void
+    {
+        // Hebrew relies on prefixes for plurals and construct forms (D3), so D41 is Latin only:
+        // both products match "כלב" fully and the better bm25 still wins.
+        $ids = self::rank('כלב', [
+            self::candidate('P0001', 'מיטה', bm25: -1.0, tags: ['כלב']),
+            self::candidate('P0002', 'מיטה', bm25: -9.0, tags: ['כלבים']),
+        ]);
+
+        self::assertSame(['P0002', 'P0001'], $ids);
+    }
+
     public function testReturnsAtMost24(): void
     {
         $candidates = [];

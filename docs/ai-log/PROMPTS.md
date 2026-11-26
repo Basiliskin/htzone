@@ -391,3 +391,11 @@
 ### 2026-11-26T12:27:20.538Z : chat
 
 > commiteed and pushed
+
+### 2026-11-26T12:30:05.528Z : chat
+
+> next I want Fix F1, English whole-word ranking (about 30–45 min with /developer)
+
+### 2026-11-26T12:31:28.985Z : chat
+
+> D41 a, D42 a

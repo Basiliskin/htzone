@@ -245,3 +245,19 @@ How the work was done with Claude, step by step. Prompts are captured verbatim i
 **Open:** F9 Lighthouse score (user).
 
 **Next step suggested:** `/interview`
+
+## 2026-11-27 00:30 : developer — fix QA F1 (English whole-word ranking)
+
+**User input:**
+> next I want Fix F1, English whole-word ranking (about 30–45 min with /developer)
+> D41 a, D42 a
+
+**Diagnosis:** `Ranker::bestStrength` counted any word that *starts* with a query variant as a full match. `kettle` matched the brand `Kettler` (P0802 spinning bike, which also got a high bm25 from the brand field) and the tag `kettlebell` (P0805). `Air Fryer` is not a bug: the catalog has only 2 fryers, which rank #1–2; the rest match "air" alone.
+**Options offered:** D41 English prefix-only matches (a ×0.5 / b whole words only / c the same for Hebrew) · D42 Air Fryer expectation (a assert the top 2 / b hide partial matches / c a "related" divider).
+**Decision:** D41 a · D42 a.
+**Work (test-first):** relevance rows 20 `kettle`, 21 `Air Fryer`; `RankerTest` English whole word vs prefix, half-typed `macb`, Hebrew prefix keeps strength. Row 20 and the whole-word unit test were red, the 3 guards green. Then `RankingWeights::latinPrefix = 0.5` and `bestStrength` (no longer static: it reads the weight; it keeps scanning after a prefix hit in case a whole word follows).
+**Verified (real output):** `composer check`: CS 0/74, PHPStan max OK, `OK (177 tests, 10551 assertions)` (Relevance 23/23). Mutations: penalty off → row 20 + unit fail; penalty for all scripts → the Hebrew guard fails; whole words only → the half-typed test fails. Live (old) vs local (new) on 25 English/mixed queries: 24 identical top 5s, `kettle` → P0162 P0009 P0952 P0802 P0805.
+**Claude suggestion changed:** the first half-typed test only asserted the product was returned. The "whole words only" mutation passed it, because the Ranker keeps description-only matches anyway. It was rewritten to compete against a description-only product with a better bm25, and now fails on that mutation. A two-file patch script failed its own count check halfway (4 calls, not 5); the partial state was seen in the gate output and finished, not left half-applied.
+**Artifacts:** `src/Domain/Search/{Ranker,RankingWeights}.php`, `tests/Unit/Domain/Search/RankerTest.php`, `tests/Relevance/ExampleQueriesTest.php`, `docs/requirements.md` §4 (rows 20–21), `docs/decisions.md` (D41–D42), `docs/architecture.md` §6, `docs/qa-report.md`, `README.md`.
+
+**Next step suggested:** commit + push → CI green → Render deploys → `kettle` live check; then `/interview`.

@@ -143,6 +143,15 @@ final class ExampleQueriesTest extends TestCase
         yield '19 iPhone 16: nothing matched only on "16"' => ['iPhone 16', static function (SearchResult $r, string $why): void {
             self::assertSame([], array_intersect(['P0027', 'P0301', 'P0306'], self::top($r, 5)), $why);
         }];
+        // QA F1 / D41: an English word that only starts a product word ("Kettler", "kettlebell") is a weaker match.
+        yield '20 kettle (English whole word)' => ['kettle', static function (SearchResult $r, string $why): void {
+            self::assertEqualsCanonicalizing(['P0162', 'P0009'], self::top($r, 2), $why);
+            self::assertSame([], array_intersect(['P0802', 'P0805'], self::top($r, 3)), 'spinning bike / kettlebell' . $why);
+        }];
+        // D42: the catalog has only two air fryers; everything after them matches "air" alone.
+        yield '21 Air Fryer (both words first)' => ['Air Fryer', static function (SearchResult $r, string $why): void {
+            self::assertEqualsCanonicalizing(['P0001', 'P0002'], self::top($r, 2), $why);
+        }];
     }
 
     /**

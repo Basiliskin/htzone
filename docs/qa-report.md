@@ -98,8 +98,8 @@ Local times are measured from the client to the dev container (warm). Live times
 | mixed: אוזניות Bose | P0415 P0533 P0426 P0419 P0416 | 3 / 82 | ✅ |
 | gibberish: asdfqwer | 0 | 4 / 89 | ✅ |
 | extra: מתנות לכלבים | dog products | 7 / 98 | ✅ |
-| extra: kettle | P0162 **P0802 spinning bike, P0805 kettlebell** P0009 P0952 | 2 / 87 | 🟡 `kettle*` prefix catches "kettlebell" (F1) |
-| extra: Air Fryer | P0002 P0001 **P0305 MacBook Air**, air purifiers | 3 / 94 | 🟡 a one-word match on "air" ranks above other fryers (F1) |
+| extra: kettle | P0162 **P0802 spinning bike, P0805 kettlebell** P0009 P0952 | 2 / 87 | 🟡 → ✅ after F1 fix: P0162 P0009 P0952 P0802 P0805 |
+| extra: Air Fryer | P0002 P0001 **P0305 MacBook Air**, air purifiers | 3 / 94 | ✅ only 2 fryers exist; the rest match "air" alone (D42) |
 
 \* first call after idle; repeats are 2–10 ms. Server-side times are in the log line and in the p95 test.
 
@@ -170,7 +170,7 @@ User: F2 should be fixed too, limited on the server. D1 (a) and D2 (a) were take
 
 | # | Outcome | Evidence |
 |---|---|---|
-| F1 | deferred → README Known limitations | README |
+| F1 | **fixed** after QA by /developer: D41 (English prefix-only match ×0.5), D42 (Air Fryer row asserts top 2) | relevance rows 20–21 + 3 Ranker tests; row 20 and its unit test red → green; mutations (no penalty / all scripts / whole words only) each fail one test; 24 of 25 English/mixed queries keep their top 5, only `kettle` changes |
 | F2 | **fixed**: `docker/apache.conf` `LimitRequestLine 2048` + `ErrorDocument 414 /errors/414.json` (`public/errors/414.json`), JSON charset, `no-store` (D39) | prod and dev image: 3000-char query → `414 {"error":{"code":"request_too_long",…}}`; 100 Hebrew chars → 200. New CI smoke lines fail against the old HTML 414 (checked) |
 | F3 | **fixed**: `Strict-Transport-Security: max-age=31536000` in `src/Http/Kernel.php` + Apache (D40) | `KernelTest` red (5 failures) → green; header on API and static files of the rebuilt prod image; CI smoke asserts it |
 | F4 | **fixed**: `render.js` `announcement` appends the notice message | new `render.test.js` case red → green; browser: "נמצאו 6 מוצרים. לא נמצא דגם מדויק, הנה המוצרים הקרובים", "נמצאו 5 מוצרים. האם התכוונת: מיקרוגל?" |

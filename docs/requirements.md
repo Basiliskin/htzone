@@ -136,6 +136,8 @@ The actor is the **Visitor** (anonymous). AC ids are referenced by tests (`AC-x.
 | 17 | קשדגכ / xyzzy | 0 Results → no-results state with suggestions | Nonsense. |
 | 18 | `" OR 1=1 --` | 200, no error; treated as text | Robustness (AC-4.3). |
 | 19 | iPhone 16 (qualifier check) | no product in the top 5 matched *only* on "16" (e.g. P0027, P0301, P0306) | Numbers alone must not pull in products (ADR 0003). |
+| 20 | kettle | top 2 = {P0162, P0009}; P0802 (brand Kettler) and P0805 (kettlebell) not in the top 3 | English whole word beats a word it only starts (QA F1, D41). |
+| 21 | Air Fryer | top 2 = {P0001, P0002} | Both words beat one: the catalog has only two air fryers, so later results matching "air" alone are expected (D42). |
 
 Exact product ids in rows 12 and 14 are pinned by `/data` after enrichment. If a row can't pass, it's changed only by an explicit decision, never quietly.
 
