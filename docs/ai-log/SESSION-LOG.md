@@ -106,3 +106,19 @@ How the work was done with Claude, step by step. Prompts are captured verbatim i
 **Artifacts:** files above, `docs/stack.md`, `docs/decisions.md` (D26–D28), `README.md` (Run).
 
 **Next step suggested:** `/developer S1 Migrations and import`
+
+## 2026-11-26 15:40 : developer S1 — migrations and import
+
+**User input:**
+> /developer S1 Migrations and import
+> agree to recommendations (D29 a, D30 a)
+
+**Work (test-first):** `Domain\Catalog\{Money, Product}`; `Infrastructure\Persistence\{SqliteConnection, MigrationRunner}`; `Infrastructure\Import\{CsvCatalogReader, CatalogRow, EnrichmentReader, PriceGenerator, CatalogImporter, ImportReport, ImportFailed}`; `migrations/0001–0003`; `src/Services.php` (composition root) + `bin/migrate`, `bin/import`. The prod `Dockerfile` stage runs `bin/import` and ships the DB read-only (`0444`, root-owned).
+**Verified (real output):** `composer check` → CS Fixer 0 of 27 files to fix, PHPStan max `[OK] No errors`, PHPUnit `OK (45 tests, 10113 assertions)` (Unit 30 / Integration 15). `bin/migrate` twice: applies 0001–0003, then "up to date". `bin/import`: `1000 products imported (1000 with tags) in 87 ms`, the single warning being the known P0014 Persian letters. A bad header gives exit 1 with "nothing was written". Prod image: 1000 rows; writes refused even from a read-write handle ("attempt to write a readonly database").
+**Bugs found by tests and fixed:** (1) a golden price test used the wrong subcategory for P0950 (`כלבים` instead of `כללי לחיות מחמד`). The code was right and matched the /data preview; the test was fixed. (2) Claude's real-catalog test asserted that the cheapest price equals the lowest range minimum. That's false (the hash picks inside the range), so it now asserts "no price below ₪19".
+**Claude suggestion changed/rejected:** the architecture's external-content FTS tables would have silently indexed `category` without the subcategory (FTS reads content columns by name), so they were changed to regular FTS tables filled by the importer. `PriceGenerator::priceFor(Product)` was circular (a Product needs its price), so it now takes the id and the category key. Two over-clever test assertions were rewritten to be explicit. A const + `match` was simplified to one array.
+**Options offered:** D29 bad-row handling · D30 lookalike letters from other scripts.
+**Decision:** D29 a · D30 a.
+**Artifacts:** files above, tests in `tests/{Unit,Integration,Support,Fixtures}`, `docs/architecture.md` §5, §7, §10, `docs/decisions.md` (D29–D30), `docs/stack.md`, `README.md`.
+
+**Next step suggested:** `/developer S2 Domain search logic`

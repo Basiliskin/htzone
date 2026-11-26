@@ -46,6 +46,13 @@ COPY --from=vendor /app/vendor ./vendor
 COPY src ./src
 COPY public ./public
 COPY bin ./bin
-# S1 adds: migrations, templates, data + assets/catalog CSV, and `php bin/import` → read-only var/catalog.sqlite
-RUN chown -R root:root /app && chmod -R a-w /app/src /app/public /app/vendor && chown www-data:www-data /app/var
+COPY migrations ./migrations
+COPY data/enrichment.jsonl data/price-ranges.json ./data/
+COPY assets/catalog_no_prices.csv ./assets/
+# Build the catalog DB inside the image (D5, ADR 0002): the deploy needs no external database.
+# Then make code and DB read-only; at runtime the app opens the DB with SQLITE_OPEN_READONLY too (AC-6.4).
+RUN php bin/import \
+ && chown -R root:root /app \
+ && chmod -R a-w /app \
+ && chmod 0444 /app/var/catalog.sqlite
 USER www-data

@@ -4,18 +4,18 @@ declare(strict_types=1);
 
 /*
  * Front controller: Apache sends every request that isn't a real file here.
- * S0 placeholder page; S4 replaces the body with: (require bootstrap)->handle(Request::fromGlobals()).
+ * S0 placeholder page; S4 replaces the body with: $services->kernel()->handle(Request::fromGlobals()).
  */
 
-use Htzone\Infrastructure\Config;
+use Htzone\Services;
 
-/** @var Config $config */
-$config = require __DIR__ . '/../src/bootstrap.php';
+/** @var Services $services */
+$services = require __DIR__ . '/../src/bootstrap.php';
 
 header('Content-Type: text/html; charset=utf-8');
 header('Cache-Control: no-cache');
 
-$env = htmlspecialchars($config->appEnv, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+$env = htmlspecialchars($services->config->appEnv, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 echo <<<HTML
     <!doctype html>
     <html lang="he" dir="rtl">

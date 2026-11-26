@@ -22,8 +22,8 @@ Project-specific input for the generic role skills in `.claude/skills/`. Command
 | Start local (first run builds the image) | `docker compose up -d --build` (service `app`, project mounted at `/app`) |
 | Install deps | `docker compose exec app composer install` |
 | All checks at once | `docker compose exec app composer check` (= format check + PHPStan + PHPUnit) |
-| Migrate only _(S1)_ | `docker compose exec app php bin/migrate` |
-| Migrate + import catalog _(S1)_ | `docker compose exec app php bin/import` |
+| Migrate only | `docker compose exec app php bin/migrate` (safe to repeat) |
+| Migrate + import catalog | `docker compose exec app php bin/import [--csv=… --enrichment=…]` (exit 1 = invalid input, all problems listed, nothing written) |
 | Check enrichment | `docker compose exec app php bin/check-enrichment` |
 | All PHP tests | `docker compose exec app vendor/bin/phpunit` (suites: `--testsuite Unit\|Integration\|Relevance`) |
 | Static analysis | `docker compose exec app vendor/bin/phpstan analyse` |

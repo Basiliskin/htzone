@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 $finder = PhpCsFixer\Finder::create()
     ->in([__DIR__ . '/src', __DIR__ . '/public', __DIR__ . '/tests'])
-    ->append([__DIR__ . '/bin/check-enrichment', __FILE__]);
+    ->append([__DIR__ . '/bin/check-enrichment', __DIR__ . '/bin/migrate', __DIR__ . '/bin/import', __FILE__]);
 
 return (new PhpCsFixer\Config())
     ->setRiskyAllowed(true)

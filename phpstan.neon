@@ -8,4 +8,6 @@ parameters:
         - public
         - tests
         - bin/check-enrichment
+        - bin/migrate
+        - bin/import
     tmpDir: var/cache/phpstan

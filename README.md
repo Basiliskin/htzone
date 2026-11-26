@@ -10,9 +10,10 @@ Needs only Docker.
 ```bash
 docker compose up -d --build                 # dev container (PHP 8.3 + Apache), http://localhost:8080
 docker compose exec app composer install     # dependencies
+docker compose exec app php bin/import       # migrations + 1000 products + tags + prices → var/catalog.sqlite
 docker compose exec app composer check       # format check + PHPStan (max) + PHPUnit
 ```
-Loading the catalog (`bin/import`) arrives in S1. All commands: [`docs/stack.md`](docs/stack.md).
+The production image builds the same database during `docker build` and ships it read-only. All commands: [`docs/stack.md`](docs/stack.md).
 
 ## Key decisions
 Full list with reasons: [`docs/decisions.md`](docs/decisions.md).

@@ -152,13 +152,12 @@ CREATE TABLE products (
   image_url    TEXT NOT NULL,
   price_minor  INTEGER NOT NULL CHECK (price_minor >= 0),
   currency     TEXT NOT NULL DEFAULT 'ILS',
-  tags         TEXT NOT NULL DEFAULT ''         -- space-joined HE+EN tags from enrichment
+  tags         TEXT NOT NULL DEFAULT ''         -- HE+EN tags from enrichment, joined with " | "
 ) STRICT;
 
 -- 0002_create_fts.sql  (column order = bm25 weight order)
 CREATE VIRTUAL TABLE products_fts USING fts5(
   name, brand, tags, category, description,     -- category column = category + ' ' + subcategory
-  content='products', content_rowid='rowid',
   tokenize = "unicode61 remove_diacritics 2",
   prefix = '2 3'                                -- faster prefix queries
 );
@@ -166,13 +165,12 @@ CREATE VIRTUAL TABLE products_fts USING fts5(
 -- 0003_create_trigram.sql  (typo fallback only)
 CREATE VIRTUAL TABLE products_trigram USING fts5(
   name, brand, tags,
-  content='products', content_rowid='rowid',
   tokenize = "trigram"
 );
 ```
 
 - **Field weights** are applied as `bm25(products_fts, 10.0, 8.0, 6.0, 3.0, 1.0)` (name, brand, tags, category, description) and live in `RankingWeights` as well, so they're tuned in one place.
-- The FTS tables are external-content tables. Because the catalog is written only during import, the importer runs `INSERT INTO products_fts(products_fts) VALUES('rebuild')` (the same for trigram) after loading the rows. No triggers are needed.
+- The FTS tables are **regular FTS5 tables filled by the importer** (`INSERT … SELECT rowid, …`), sharing the `products` rowid so a match joins straight back to its product. *Changed in S1:* external-content mode reads columns **by name** from `products`, but the `category` search column is category + subcategory combined, so `rebuild` would silently index the category alone. The duplicate copy of 1000 rows costs a few hundred KB. No triggers are needed because only the importer writes.
 - **Migration runner:**
   - creates `schema_migrations(version TEXT PRIMARY KEY, applied_at TEXT NOT NULL)`;
   - applies `migrations/*.sql` files that aren't recorded yet, in filename order, each in its own transaction;
@@ -222,14 +220,15 @@ GET /api/search?q=…
 1. `MigrationRunner` applies pending migrations, creating the DB file if needed.
 2. `CsvCatalogReader` strips the BOM, checks the header columns exactly and validates each row (id format, non-empty required fields, URL scheme https). An invalid row aborts the import with `row N (Pxxxx): reason` (AC-6.2).
 3. `EnrichmentReader` reads `data/enrichment.jsonl`. Ids must match the CSV exactly in both directions (AC-6.3). If the file is missing, the import runs with empty tags and prints a loud warning, so S1 can run before `/data` finishes.
-4. `PriceGenerator::priceFor(Product)` is deterministic. It takes a per-category range `[min,max]` in shekels, picks `h = crc32("htzone-v1:" . id)`, sets `shekels = min + h % (max - min)`, then rounds to a store-like ending (`…9` or `…90`). No global random generator is used, so the result is the same in any environment (AC-2.6).
-5. In one transaction: `DELETE FROM products` → insert all rows → rebuild both FTS indexes → `PRAGMA optimize`. Re-running gives identical contents.
-6. It prints a summary: rows, tagged rows and duration.
+4. `PriceGenerator::priceFor(id, "category > subcategory"): Money` is deterministic (D24). It takes the subcategory's range `[min,max]` in shekels from `data/price-ranges.json`, sets `shekels = min + crc32("htzone-v1:" . id) % (max − min + 1)`, rounds up to a store-like ending (`…9` under ₪1,000, `…99` above) and caps it at `max`. No global random generator is used, so the result is the same in any environment (AC-2.6). *Changed in S1:* it takes the id and key instead of a `Product`, because a `Product` can't exist without its price.
+5. Every input is validated **before** the DB is touched, and all problems are reported together (D29). Rows with letters outside Hebrew/Latin produce a warning; the text is kept (D30).
+6. In one transaction: clear the three tables → insert all rows → fill both FTS indexes from `products`; then `PRAGMA optimize`. Re-running gives identical contents.
+7. It prints a summary (rows, tagged rows, duration) and the warnings. Exit 1 means invalid input, with nothing written.
 
 It runs in three places:
 - `docker compose exec app php bin/import` (local);
 - in the Dockerfile build stage (production; the DB file is then made read-only);
-- once in the PHPUnit bootstrap into `sys_get_temp_dir()` for the Integration and Relevance suites, using the real CSV and enrichment.
+- in tests, into a fresh temporary directory per test (`tests/Support/TempDirectory`). `RealCatalogImportTest` imports the real files; the Relevance suite (S3) will reuse one real import per run.
 
 ## 8. HTTP contract
 
@@ -286,9 +285,9 @@ It runs in three places:
 
 ## 10. Composition root and config
 
-`src/bootstrap.php` returns a configured `Kernel`:
+`src/bootstrap.php` returns `Htzone\Services`, the composition root used by `public/index.php` and `bin/*` (*changed in S1*, so the CLI entry points don't wire their own objects):
 - `Config::fromEnv()` reads `APP_ENV` (`prod|dev|test`, default `prod`), `DB_PATH` (default `/app/var/catalog.sqlite`) and `LOG_LEVEL` (`info`).
-- It builds a read-only PDO, then `SqliteProductRepository`, `QueryNormalizer`, `Ranker`, `SearchProducts`, the controllers, `Router` and `Kernel(JsonLogger)`.
+- `catalogImporter()` / `migrationRunner()` (S1) use a read-write PDO. `kernel()` (S4) builds a read-only PDO, then `SqliteProductRepository`, `QueryNormalizer`, `Ranker`, `SearchProducts`, the controllers, `Router` and `Kernel(JsonLogger)`.
 - Nothing else uses `new` for services. Tests build their own graph with the same constructors (plus a fake repository in unit tests). `.env.example` documents the three variables, and there are no secrets.
 
 ## 11. Production checklist → where it's handled

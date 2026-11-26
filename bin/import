@@ -1,0 +1,41 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/*
+ * Migrate + load the catalog, enrichment tags and generated prices into DB_PATH, in one transaction.
+ *   php bin/import [--csv=path] [--enrichment=path]
+ * Exit code 0 = imported, 1 = invalid input (every problem listed, nothing written), 2 = other error.
+ */
+
+use Htzone\Infrastructure\Import\ImportFailed;
+use Htzone\Services;
+
+/** @var Services $services */
+$services = require __DIR__ . '/../src/bootstrap.php';
+
+$options = getopt('', ['csv:', 'enrichment:']);
+$csv = is_string($options['csv'] ?? null) ? $options['csv'] : Services::CATALOG_CSV;
+$enrichment = is_string($options['enrichment'] ?? null) ? $options['enrichment'] : Services::ENRICHMENT;
+
+try {
+    $report = $services->catalogImporter()->import($csv, $enrichment);
+} catch (ImportFailed $e) {
+    fwrite(STDERR, "✗ import failed, nothing was written. {$e->getMessage()}\n");
+    exit(1);
+} catch (Throwable $e) {
+    fwrite(STDERR, '✗ import error: ' . $e::class . ": {$e->getMessage()}\n");
+    exit(2);
+}
+
+foreach ($report->warnings as $warning) {
+    fwrite(STDERR, "⚠ {$warning}\n");
+}
+printf(
+    "✓ %s: %d products imported (%d with tags) in %d ms\n",
+    $services->config->dbPath,
+    $report->products,
+    $report->tagged,
+    $report->durationMs,
+);

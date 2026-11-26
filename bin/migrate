@@ -1,0 +1,25 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/*
+ * Applies pending migrations to DB_PATH (creates the file if needed). Safe to run repeatedly.
+ *   php bin/migrate
+ */
+
+use Htzone\Services;
+
+/** @var Services $services */
+$services = require __DIR__ . '/../src/bootstrap.php';
+
+try {
+    $applied = $services->migrationRunner()->run();
+} catch (Throwable $e) {
+    fwrite(STDERR, "✗ migrate failed: {$e->getMessage()}\n");
+    exit(1);
+}
+
+echo $applied === []
+    ? "✓ {$services->config->dbPath}: up to date\n"
+    : '✓ ' . $services->config->dbPath . ': applied ' . implode(', ', $applied) . "\n";
