@@ -423,3 +423,15 @@
 ### 2026-11-26T12:38:25.464Z : chat
 
 > add it as an ADR
+
+### 2026-11-26T12:39:51.972Z : chat
+
+> commited and pushed - whats can be implemented next if we have time ?
+
+### 2026-11-26T12:41:15.605Z : chat
+
+> I want " A "meaning" coverage pass, about 45 min (/data)." next
+
+### 2026-11-26T12:44:59.586Z : chat
+
+> no regressions ?

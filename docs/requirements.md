@@ -138,6 +138,11 @@ The actor is the **Visitor** (anonymous). AC ids are referenced by tests (`AC-x.
 | 19 | iPhone 16 (qualifier check) | no product in the top 5 matched *only* on "16" (e.g. P0027, P0301, P0306) | Numbers alone must not pull in products (ADR 0003). |
 | 20 | kettle | top 2 = {P0162, P0009}; P0802 (brand Kettler) and P0805 (kettlebell) not in the top 3 | English whole word beats a word it only starts (QA F1, D41). |
 | 21 | Air Fryer | top 2 = {P0001, P0002} | Both words beat one: the catalog has only two air fryers, so later results matching "air" alone are expected (D42). |
+| 22 | להתאמן בבית | top 5 ⊂ subcategory `כושר ביתי` | Need as a verb; tags were nouns ("כושר ביתי"). Meaning pass, `docs/data.md` §6. |
+| 23 | לקרר את הבית בקיץ | top 5 ⊂ `אקלים ומיזוג`, no heaters (P0233, P0234, P0237, P0238, P0241) | Verb need; nothing said "לקרר" before. |
+| 24 | לשמור על אוכל טרי | top 5 ⊂ `אחסון ושימור מזון` | Was matching dining furniture through "פינת אוכל". |
+| 25 | ציוד לטיול | ≥ 4 of the top 5 in `קמפינג וטיולים` / `בקבוקים ותרמוסים`; no stroller P0901 | "טיול" also starts "טיולון" (stroller). |
+| 26 | gift for a runner | ≥ 4 of the top 5 running-related (bottles, watches, earbuds, home fitness); no runner rug P0624 | English need; "runner" is also a rug. |
 
 Exact product ids in rows 12 and 14 are pinned by `/data` after enrichment. If a row can't pass, it's changed only by an explicit decision, never quietly.
 

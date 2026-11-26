@@ -152,6 +152,25 @@ final class ExampleQueriesTest extends TestCase
         yield '21 Air Fryer (both words first)' => ['Air Fryer', static function (SearchResult $r, string $why): void {
             self::assertEqualsCanonicalizing(['P0001', 'P0002'], self::top($r, 2), $why);
         }];
+        // Meaning pass (docs/data.md §6): need-phrases with verbs, which the noun tags didn't cover.
+        yield '22 להתאמן בבית (need, verb)' => ['להתאמן בבית', static function (SearchResult $r, string $why): void {
+            self::assertSame(5, self::countInSubcategories($r, ['כושר ביתי']), $why);
+        }];
+        yield '23 לקרר את הבית בקיץ (need, verb)' => ['לקרר את הבית בקיץ', static function (SearchResult $r, string $why): void {
+            self::assertSame(5, self::countInSubcategories($r, ['אקלים ומיזוג']), $why);
+            self::assertSame([], array_intersect(['P0233', 'P0234', 'P0237', 'P0238', 'P0241'], self::top($r, 5)), 'heaters don\'t cool' . $why);
+        }];
+        yield '24 לשמור על אוכל טרי (need, verb)' => ['לשמור על אוכל טרי', static function (SearchResult $r, string $why): void {
+            self::assertSame(5, self::countInSubcategories($r, ['אחסון ושימור מזון']), 'not dining furniture ("פינת אוכל")' . $why);
+        }];
+        yield '25 ציוד לטיול (need)' => ['ציוד לטיול', static function (SearchResult $r, string $why): void {
+            self::assertGreaterThanOrEqual(4, self::countInSubcategories($r, ['קמפינג וטיולים', 'בקבוקים ותרמוסים']), $why);
+            self::assertNotContains('P0901', self::top($r, 5), 'a stroller ("טיולון") is not hiking gear' . $why);
+        }];
+        yield '26 gift for a runner (need, English)' => ['gift for a runner', static function (SearchResult $r, string $why): void {
+            self::assertGreaterThanOrEqual(4, self::countInSubcategories($r, ['בקבוקים ותרמוסים', 'שעונים וצמידים חכמים', 'אוזניות', 'כושר ביתי']), $why);
+            self::assertNotContains('P0624', self::top($r, 5), 'a hallway "runner" rug' . $why);
+        }];
     }
 
     /**
@@ -182,6 +201,14 @@ final class ExampleQueriesTest extends TestCase
         $p95 = $durations[(int) ceil(0.95 * count($durations)) - 1];
 
         self::assertLessThan(100.0, $p95, sprintf('AC-1.6: p95 %.1f ms over %d searches', $p95, count($durations)));
+    }
+
+    /**
+     * @param list<string> $subcategories
+     */
+    private static function countInSubcategories(SearchResult $result, array $subcategories): int
+    {
+        return count(array_filter(array_slice($result->results, 0, 5), static fn (RankedProduct $r): bool => in_array($r->product->subcategory, $subcategories, true)));
     }
 
     private static function countInCategory(SearchResult $result, string $category): int

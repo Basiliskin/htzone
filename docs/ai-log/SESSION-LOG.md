@@ -279,3 +279,23 @@ How the work was done with Claude, step by step. Prompts are captured verbatim i
 **Work:** `docs/adr/0004-migration-to-production-search.md` (status: proposed). Options: scale in place (Postgres full-text search behind the current interface) / rewrite / **gradual migration (chosen)**. It lists what stays (HTTP, frontend, domain values, relevance suite as the gate, enrichment guide/check, composition root) and what changes (the repository interface → `ProductSearch::search(SearchRequest)`, normalizer/ranker/aliases/trigrams → engine configuration, SQLite-in-image → Postgres + indexer, new workers/cache/analytics, hosting). A 5-phase plan, each phase with done-when and a rollback.
 **Claude suggestion changed:** while writing it, Claude found that its own ADR 0002 claim ("the Domain and Application layers don't change") is true only for Postgres full-text search: `findCandidates(list<SearchTerm>)` is shaped around the FTS5 approach. ADR 0002 now carries a one-line note pointing to ADR 0004, rather than leaving the claim uncorrected.
 **Artifacts:** `docs/adr/0004-migration-to-production-search.md`, `docs/adr/0002-sqlite-built-into-image.md` (note), `README.md` (link).
+
+## 2026-11-27 01:40 : data — meaning-coverage pass
+
+**User input:**
+> I want " A "meaning" coverage pass, about 45 min (/data)." next
+
+**Options offered:** none. The fix follows the settled precedent (D2/D11 tags; the "אוהב לבשל" data fix in S3, `docs/data.md` §6). Stated defaults: one tag group per gap, products chosen by name, verb phrase + English per group, nothing removed, a heating group alongside cooling.
+**Work:** 20 need-queries (HE/EN; verbs, gifts, situations), each with expected subcategories written before running; a scorer against the dev server. A repeatable tag script (82 product links, 9 groups, 308 tags) applied to `data/enrichment.jsonl`; relevance rows 22–26 + a `countInSubcategories` helper.
+**Verified (real output):** before: ✅6 🟡7 ❌7 (by subcategory); after: ✅14 🟡5 ❌1, and by hand 19/20 good (the one flaw: a model-car kit at #5 for "לנקות את הרכב"). `bin/check-enrichment` ✓ (avg HE 10.9 / EN 5.3). Rows 22–26: 5 failures on the old tags, `OK (28 tests, 65 assertions)` on the new; the 23 earlier rows pass on both.
+**Claude suggestion changed:** the first scorer run gave all ❌ because the API has no `subcategory` field; it was caught as implausible and fixed with a DB lookup. The scorer's ❌ for "מתנה לגיימר" (5 gaming products filed under other subcategories) was overruled by reading the results; no tags were added there. The new rows check subcategories and named wrong products rather than the tag list itself, so they don't just restate the data change.
+**Artifacts:** `data/enrichment.jsonl`, `tests/Relevance/ExampleQueriesTest.php`, `docs/requirements.md` §4 (rows 22–26), `docs/data.md` §6–7, `README.md`.
+
+## 2026-11-27 02:00 : data — regression check of the meaning-pass tags
+
+**User input:**
+> no regressions ?
+
+**Work:** the same 68 broad queries (the brief's examples, QA queries, and words shared with the new tags) were run on the old and the new `enrichment.jsonl`, and the top 5 were diffed and read by name.
+**Verified (real output):** 26 of 68 changed. Most are reordering or improvements (`heating`, `fresh`, `לנקות` 0 → 4, `נער` 0 → 11, `running shoes`: there are no running shoes in the catalog, and the old #2–3 were a shoe rack and cabinet). Accepted losses: `טיול` gets bike computer P0834 at #4, and `runner rug` gets running bag P0898 at #4. Removing the duplicate tag "ציוד לטיולים" (14 products) didn't move `טיול`, but the plural query still works, so it stays removed (308 tags, not 322).
+**Claude suggestion changed:** "all gates green" was not taken as proof of no regression, because the relevance rows cover only 28 queries. The broader diff found the two small losses above.
