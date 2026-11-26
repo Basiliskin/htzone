@@ -15,4 +15,4 @@ Option 2. FTS5 gives weighted BM25 ranking, prefix matching and a trigram tokeni
 ## Consequences
 - Deploy = one image; data is versioned with the code; every deploy rebuilds the catalog from source (reproducible).
 - No runtime writes: there's no need for a persistent disk on the host.
-- If the catalog becomes editable or multi-instance writes are needed → implement `ProductRepository` for Postgres (tsvector + pg_trgm); the Domain and Application layers don't change.
+- If the catalog becomes editable or multi-instance writes are needed → implement `ProductRepository` for Postgres (tsvector + pg_trgm); the Domain and Application layers don't change. (That holds for Postgres full-text search only; moving to a search engine also changes the repository interface, see ADR 0004.)

@@ -399,3 +399,27 @@
 ### 2026-11-26T12:31:28.985Z : chat
 
 > D41 a, D42 a
+
+### 2026-11-26T12:34:37.637Z : chat
+
+> I understand this is solution - but what is rela solution for such issues?
+
+### 2026-11-26T12:35:12.034Z : chat
+
+> what about RAG ?
+
+### 2026-11-26T12:36:08.572Z : chat
+
+> If there arent "The brief rules" - what proper production grade solution
+
+### 2026-11-26T12:36:53.606Z : chat
+
+> please add this to readme
+
+### 2026-11-26T12:37:44.480Z : chat
+
+> what changes will be require to move from current solution to proper one ?
+
+### 2026-11-26T12:38:25.464Z : chat
+
+> add it as an ADR

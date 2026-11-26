@@ -261,3 +261,21 @@ How the work was done with Claude, step by step. Prompts are captured verbatim i
 **Artifacts:** `src/Domain/Search/{Ranker,RankingWeights}.php`, `tests/Unit/Domain/Search/RankerTest.php`, `tests/Relevance/ExampleQueriesTest.php`, `docs/requirements.md` §4 (rows 20–21), `docs/decisions.md` (D41–D42), `docs/architecture.md` §6, `docs/qa-report.md`, `README.md`.
 
 **Next step suggested:** commit + push → CI green → Render deploys → `kettle` live check; then `/interview`.
+
+## 2026-11-27 00:50 : README — production-grade design section
+
+**User input:**
+> I understand this is solution - but what is rela solution for such issues? · what about RAG ? · If there arent "The brief rules" - what proper production grade solution · please add this to readme
+
+**Work:** a README section "Production-grade design (beyond the brief)": the pipeline diagram; data/CDC and LLM enrichment; search engine with Hebrew/English analyzers and an edge-n-gram autocomplete field; the query-time stages (cache → understanding → hybrid BM25 + kNN with RRF → learning-to-rank rerank → business rules); where LLMs/RAG fit and where they don't; NDCG + A/B evaluation; operations; a stack-by-scale table. It links back to D2, D3 and D41 so the current code reads as stage one of that design.
+**Artifacts:** `README.md`.
+
+## 2026-11-27 01:10 : ADR 0004 — migration to a production search stack
+
+**User input:**
+> what changes will be require to move from current solution to proper one ?
+> add it as an ADR
+
+**Work:** `docs/adr/0004-migration-to-production-search.md` (status: proposed). Options: scale in place (Postgres full-text search behind the current interface) / rewrite / **gradual migration (chosen)**. It lists what stays (HTTP, frontend, domain values, relevance suite as the gate, enrichment guide/check, composition root) and what changes (the repository interface → `ProductSearch::search(SearchRequest)`, normalizer/ranker/aliases/trigrams → engine configuration, SQLite-in-image → Postgres + indexer, new workers/cache/analytics, hosting). A 5-phase plan, each phase with done-when and a rollback.
+**Claude suggestion changed:** while writing it, Claude found that its own ADR 0002 claim ("the Domain and Application layers don't change") is true only for Postgres full-text search: `findCandidates(list<SearchTerm>)` is shaped around the FTS5 approach. ADR 0002 now carries a one-line note pointing to ADR 0004, rather than leaving the claim uncorrected.
+**Artifacts:** `docs/adr/0004-migration-to-production-search.md`, `docs/adr/0002-sqlite-built-into-image.md` (note), `README.md` (link).
