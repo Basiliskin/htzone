@@ -284,12 +284,14 @@ It runs in three places:
 | `not_found` | 404 | unknown `/api/*` route |
 | `method_not_allowed` | 405 | not GET/HEAD |
 | `internal_error` | 500 | any uncaught throwable; details only in the log |
+| `request_too_long` | 414 | request line > 2 KB, answered by Apache (`LimitRequestLine`, `ErrorDocument` → `public/errors/414.json`) before PHP runs (D39) |
 
 **Headers set by the Kernel on every PHP response** (Apache sets the same on static files):
 - `Content-Security-Policy: default-src 'self'; img-src 'self' https://placehold.co data:; style-src 'self'; script-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'`
 - `X-Content-Type-Options: nosniff`
 - `Referrer-Policy: strict-origin-when-cross-origin`
 - `Permissions-Policy: camera=(), microphone=(), geolocation=()`
+- `Strict-Transport-Security: max-age=31536000` (D40; browsers ignore it over plain http)
 - JSON responses also get `Content-Type: application/json; charset=utf-8`. Responses are encoded with `JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_THROW_ON_ERROR`, so `<` can never appear raw.
 
 *Changed in S4:* Apache sets these headers only on responses that don't come from `index.php` (static files, its own 403/404). Otherwise every PHP response carried each header twice. `/assets/*` is never rewritten to PHP, so a missing asset is a real 404. `HEAD` = `GET` without a body. 405 adds `Allow: GET, HEAD`. Errors and `/health` are `Cache-Control: no-store`.

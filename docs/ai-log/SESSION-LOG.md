@@ -219,3 +219,19 @@ How the work was done with Claude, step by step. Prompts are captured verbatim i
 **Artifacts:** `Dockerfile`, `render.yaml`, `.env.example`, `README.md` (Live, Deploy, Known limitations), `docs/stack.md` (Hosting, Deploy, Live E2E).
 
 **Next step suggested:** `/qa verify the live site and the repo against docs/requirements.md, audit security and architecture, and check publish readiness`
+
+## 2026-11-26 23:30 : qa — final review, live and repo
+
+**User input:**
+> /qa verify the live site and the repo against docs/requirements.md, audit security and architecture, and check publish readiness
+> I think F2 is also should be fixed , limited on server
+
+**Work:** `docs/qa-report.md`: a traceability table (R1–R15, every AC, S1–S4), all gates, the 18 example queries + 5 adversarial ones locally and live (top 5 + latency), a security smoke (empty / 10k chars / FTS and SQL characters / `<script>` / RTL marks, emoji, niqqud, NUL, invalid UTF-8 / backend down / broken images / headers / secrets in tree, history and AI logs), a Playwright UX pass on live at 360 and 1280 px, an architecture audit with file:line, and a clean clone → prod image.
+**Verified (real output):** `composer check` CS 0/74, PHPStan max OK, PHPUnit `OK (172 tests)`; Relevance 21/21; JS 15/15 → 16/16 after F4; enrichment OK; E2E 3/3 local and 3/3 live; CI green on `427073b`; clean clone `/health` 200, `www-data`. Relevance: all example and adversarial rows ✅; `kettle` and `Air Fryer` 🟡 (English prefix over-match).
+**Options offered:** F1–F9 each as fix now / defer / ignore, plus D1 (fix F3, F4, F7, F8), D2 (F1 → limitation), D3 (Lighthouse by the user).
+**Decision:** the user added F2 (server-side limit); D1 a and D2 a taken as accepted. Fixed: F2 (D39, Apache `LimitRequestLine 2048` + JSON 414), F3 (D40, HSTS), F4 (notice announced via `aria-live`), F7 (Actions v7/v4/v7), F8 (README). F1 → Known limitations. F5, F6 ignored. F9 open.
+**Re-run after the fixes:** `composer check` OK (172 tests, 10545 assertions); JS 16/16; E2E 3/3 on the rebuilt dev container; the CI smoke step extracted from `ci.yml` passes against the rebuilt prod image; browser announcements include the notice; a 3000-char query → JSON 414.
+**Claude suggestion changed/rejected:** Claude's first "empty aria-live" finding was a measurement taken before the 50 ms announce delay. It was re-checked instead of "fixed", which surfaced the real gap (F4). Claude's new smoke line `grep -q … && test …` could never fail under `set -e`; this was caught by running it against the old HTML 414, then split into two lines. The first local smoke run "passed" on an empty script because PyYAML was missing, so it was redone with awk and the extracted lines were printed.
+**Artifacts:** `docs/qa-report.md`, `docker/apache.conf`, `public/errors/414.json`, `src/Http/Kernel.php`, `tests/Integration/Http/KernelTest.php`, `public/assets/render.js`, `tests/js/render.test.js`, `.github/workflows/ci.yml`, `README.md`, `docs/decisions.md` (D39–D40), `docs/architecture.md` §8.
+
+**Next step suggested:** commit + push → CI green (verifies F7) → Render deploys → re-check HSTS and the 414 live; the user runs Lighthouse (F9); then `/interview`.

@@ -13,7 +13,10 @@ export function countText(total) {
 /** What the aria-live region says for a state (AC-3.4). Loading stays silent to avoid chatter while typing. */
 export function announcement({ state, data }) {
     switch (state) {
-        case 'results': return data.total === 1 ? 'נמצא מוצר אחד' : `נמצאו ${data.total} מוצרים`;
+        case 'results': {
+            const count = data.total === 1 ? 'נמצא מוצר אחד' : `נמצאו ${data.total} מוצרים`;
+            return data.notice ? `${count}. ${data.notice.message}` : count; // the notice changes what the results mean
+        }
         case 'empty': return 'לא נמצאו מוצרים';
         case 'error': return 'אירעה שגיאה בחיפוש';
         case 'short': return 'הקלידו לפחות 2 תווים כדי לחפש';

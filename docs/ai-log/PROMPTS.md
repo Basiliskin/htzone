@@ -375,3 +375,11 @@
 > <status>completed</status>
 > <summary>Background command "Wait for spin-down, then measure cold start" completed (exit code 0)</summary>
 > </task-notification>
+
+### 2026-11-26T12:14:40.675Z : qa
+
+> /qa verify the live site and the repo against docs/requirements.md, audit security and architecture, and check publish readiness
+
+### 2026-11-26T12:21:50.999Z : chat
+
+> I think F2 is also should be fixed , limited on server

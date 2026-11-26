@@ -18,6 +18,8 @@ final readonly class Kernel
         'X-Content-Type-Options' => 'nosniff',
         'Referrer-Policy' => 'strict-origin-when-cross-origin',
         'Permissions-Policy' => 'camera=(), microphone=(), geolocation=()',
+        // HTTPS only for a year. Browsers ignore it over plain http (localhost), so it is safe in dev too.
+        'Strict-Transport-Security' => 'max-age=31536000',
     ];
     private const ALLOWED_METHODS = ['GET', 'HEAD'];
     private const MAX_LOGGED_PATH = 200;

@@ -18,13 +18,13 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       # Same image as local development (D28): same PHP, Apache and SQLite/FTS5.
       - name: Build dev image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           target: dev
@@ -60,8 +60,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       # No dependencies to install: the built-in test runner only (D36).
@@ -73,10 +73,10 @@ jobs:
     needs: checks
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
       - name: Build prod image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           target: prod
@@ -90,13 +90,18 @@ jobs:
           for i in $(seq 1 20); do curl -fsS http://localhost:8080/ >/dev/null && break; sleep 1; done
           curl -fsS -D - http://localhost:8080/ -o /dev/null | tee headers.txt
           test "$(grep -ci '^content-security-policy:' headers.txt)" = "1"   # once: Kernel, not Apache too
+          grep -qi '^strict-transport-security: max-age=31536000' headers.txt
           test "$(docker exec app id -un)" = "www-data"
           curl -fsS http://localhost:8080/health | grep -q '"products":1000'
           curl -fsS 'http://localhost:8080/api/search?q=iPhone' | grep -q '"id":"P04'
           test "$(curl -s -o /dev/null -w '%{http_code}' 'http://localhost:8080/api/search?q=a')" = "400"
+          # Over-long URL → Apache's 414 with the API's JSON error shape (LimitRequestLine, docker/apache.conf)
+          curl -s "http://localhost:8080/api/search?q=$(printf 'a%.0s' $(seq 1 3000))" -w '\n%{http_code}' | tee long.txt
+          grep -q '"code":"request_too_long"' long.txt
+          test "$(tail -1 long.txt)" = "414"
 
       # E2E against the same prod container the smoke test started (D38): what gets deployed is what is tested.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -110,7 +115,7 @@ jobs:
           E2E_BASE_URL: http://localhost:8080
       - name: Upload Playwright report (on failure)
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report
           path: |
