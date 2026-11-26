@@ -323,3 +323,10 @@ How the work was done with Claude, step by step. Prompts are captured verbatim i
 **Work:** test-first. Domain `SearchFilter` + `InvalidFilter`; `Ranker::strong()` and `RankingWeights::strongShare`; the 24 cap moved from the Ranker to `SearchProducts` (its test was moved, not weakened); Application `Facets`; HTTP `cat/min/max`, `invalid_filter`, `facets` JSON and log fields; UI chips, price form, `filtered` state, URL + history.
 **Verified (real output):** `composer check`: CS 0/79, PHPStan max OK, `OK (209 tests, 10684 assertions)`, with the 28 relevance rows unchanged. JS 21/21. E2E 5/5, and 50/50 with `--repeat-each=10` under CPU load. Mutation checks: no `filtered` state, and a new query keeping the category, each fail an E2E test. Screenshots at 1280 and 360 px: no horizontal overflow. Bugs found on the way: a vacuous price check (0 cards), the count glued to the chip name (flex drops the leading space), the chosen chip off-screen on mobile, and a race where a response wiped a half-typed price.
 **Artifacts:** `src/Domain/Search/{SearchFilter,InvalidFilter,Ranker,RankingWeights}.php`, `src/Application/{Facets,SearchProducts,SearchResult}.php`, `src/Http/{ApiError,SearchResultJson}.php`, `src/Http/Controller/SearchController.php`, `templates/page.php`, `public/assets/{state,api,render,app}.js`, `public/assets/styles.css`, tests (unit, Kernel, JS, E2E), `docs/{decisions,architecture,design,requirements}.md`, `README.md`.
+
+## 2026-11-26 15:30 : developer — filters live check
+
+**User input:**
+> commited and pushed - check live
+
+**Verified (real output):** CI on `adcafcb` succeeded (all 3 jobs, E2E against the prod image). Render served the new version about 60 s after CI. Live API: `שואב אבק` chips = מוצרי חשמל לבית (15), כלי עבודה ורכב (1); `מתנה` + kitchen + max 400 → 4 kitchen products, ₪199–₪379; `kettle` unfiltered unchanged (P0162, P0009, P0952, P0802, P0805); `min=500&max=100` → 400 `invalid_filter`; `max=1` → 0 results. E2E against https://htzone.onrender.com: 5/5 passed.
