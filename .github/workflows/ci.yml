@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Format · PHPStan · PHPUnit (in the dev image)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Same image as local development (D28): same PHP, Apache and SQLite/FTS5.
+      - name: Build dev image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: dev
+          tags: htzone-dev:ci
+          load: true
+          cache-from: type=gha,scope=dev
+          cache-to: type=gha,scope=dev,mode=max
+
+      # The runner's checkout is owned by uid 1001; the image runs as www-data (uid 33).
+      - name: Make the workspace writable for the container user
+        run: chmod -R a+rwX .
+
+      - name: Composer install
+        run: docker run --rm -v "$PWD":/app htzone-dev:ci composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Composer validate
+        run: docker run --rm -v "$PWD":/app htzone-dev:ci composer validate --strict
+
+      - name: Format check (PHP CS Fixer)
+        run: docker run --rm -v "$PWD":/app htzone-dev:ci vendor/bin/php-cs-fixer fix --dry-run --diff
+
+      - name: Static analysis (PHPStan, level max)
+        run: docker run --rm -v "$PWD":/app htzone-dev:ci vendor/bin/phpstan analyse --no-progress --memory-limit=512M
+
+      - name: Tests (PHPUnit)
+        run: docker run --rm -v "$PWD":/app htzone-dev:ci vendor/bin/phpunit
+
+      - name: Enrichment data check
+        run: docker run --rm -v "$PWD":/app htzone-dev:ci php bin/check-enrichment
+
+  image:
+    name: Build production image
+    runs-on: ubuntu-24.04
+    needs: checks
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build prod image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: prod
+          tags: htzone:ci
+          load: true
+          cache-from: type=gha,scope=prod
+          cache-to: type=gha,scope=prod,mode=max
+      - name: Smoke test the image
+        run: |
+          docker run -d --name app -p 8080:8080 htzone:ci
+          for i in $(seq 1 20); do curl -fsS http://localhost:8080/ >/dev/null && break; sleep 1; done
+          curl -fsS -D - http://localhost:8080/ -o /dev/null | tee headers.txt
+          grep -qi '^content-security-policy:' headers.txt
+          test "$(docker exec app id -un)" = "www-data"
+      - name: Container logs (on failure)
+        if: failure()
+        run: docker logs app || true

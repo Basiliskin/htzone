@@ -1,6 +1,6 @@
 # Stack & commands
 
-Project-specific input for the generic role skills in `.claude/skills/`. Commands marked _(planned)_ are created in S0 by `/developer` — update this file when they change.
+Project-specific input for the generic role skills in `.claude/skills/`. Commands were confirmed in S0. Update this file when they change.
 
 ## Stack
 | Concern | Choice |
@@ -12,24 +12,27 @@ Project-specific input for the generic role skills in `.claude/skills/`. Command
 | Frontend | Plain HTML + modern CSS + vanilla JS modules, no build step, served by PHP; RTL, mobile-first |
 | Static analysis | PHPStan (max level), PHP CS Fixer (PSR-12) |
 | Tests | PHPUnit (unit, integration, relevance), Playwright (one E2E) |
-| Runtime | `php:8.3-apache` (mod_php) in Docker, local + production; non-root; DB built inside the image (D18) |
-| CI | GitHub Actions: format check → PHPStan → PHPUnit → Docker build |
+| Runtime | `php:8.3.37-apache-trixie` (mod_php, SQLite 3.46.1) in Docker. One `Dockerfile`, stages `dev` (Composer + Xdebug, project mounted) and `prod` (code baked in, OPcache, read-only code) (D18, D26). Apache runs as `www-data` on port **8080**; DB built inside the image in S1 |
+| CI | GitHub Actions, inside the same `dev` image (D28): composer validate → format check → PHPStan → PHPUnit → enrichment check → build `prod` image + smoke test (200, CSP header, non-root) |
 | Hosting | Render free web service (Docker), keep-awake ping to `/health` |
 
-## Commands _(planned — confirm in S0)_
+## Commands (confirmed in S0)
 | Task | Command |
 |---|---|
-| Start local | `docker compose up -d` (service `app`, project mounted at `/app`) |
+| Start local (first run builds the image) | `docker compose up -d --build` (service `app`, project mounted at `/app`) |
 | Install deps | `docker compose exec app composer install` |
-| Migrate only | `docker compose exec app php bin/migrate` |
-| Migrate + import catalog | `docker compose exec app php bin/import` |
+| All checks at once | `docker compose exec app composer check` (= format check + PHPStan + PHPUnit) |
+| Migrate only _(S1)_ | `docker compose exec app php bin/migrate` |
+| Migrate + import catalog _(S1)_ | `docker compose exec app php bin/import` |
 | Check enrichment | `docker compose exec app php bin/check-enrichment` |
-| All PHP tests | `docker compose exec app vendor/bin/phpunit` (suites: `--testsuite Unit|Integration|Relevance`) |
+| All PHP tests | `docker compose exec app vendor/bin/phpunit` (suites: `--testsuite Unit\|Integration\|Relevance`) |
 | Static analysis | `docker compose exec app vendor/bin/phpstan analyse` |
 | Format check / fix | `docker compose exec app vendor/bin/php-cs-fixer fix --dry-run --diff` / `... fix` |
-| E2E | `npx playwright test` (against `http://localhost:8080`) |
-| Build prod image | `docker build -t htzone .` |
-| Open | http://localhost:8080 (compose maps 8080 → container 80) |
+| Step debugging (D27) | `XDEBUG_MODE=debug docker compose up -d`, then VS Code "Listen for Xdebug (Docker)" (`.vscode/launch.json`, port 9003, PHP Debug extension). Back to normal: `docker compose up -d` |
+| E2E _(S6)_ | `npx playwright test` (against `http://localhost:8080`) |
+| Build / run prod image | `docker build -t htzone .` / `docker run --rm -p 8080:8080 htzone` |
+| Open | http://localhost:8080 (compose maps 8080 → container 8080) |
+| Logs | `docker compose logs -f app` |
 
 ## Hooks (`.claude/settings.json`)
 - `UserPromptSubmit` → `.claude/hooks/log-prompt.mjs`: appends each prompt to `docs/ai-log/PROMPTS.md` (skips `/interview`).

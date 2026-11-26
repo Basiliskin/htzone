@@ -90,3 +90,19 @@ How the work was done with Claude, step by step. Prompts are captured verbatim i
 **Artifacts:** `data/enrichment.jsonl`, `data/enrichment-parts/part-01…10.jsonl`, `data/price-ranges.json`, `data/ENRICHMENT-GUIDE.md`, `bin/check-enrichment`, `docs/data.md`, `docs/decisions.md` (D23–D25), `README.md`.
 
 **Next step suggested:** `/developer S0 scaffold per docs/architecture.md and docs/stack.md`
+
+## 2026-11-26 15:00 : developer S0 — scaffold, Docker, CI
+
+**User input:**
+> /developer S0 scaffold per docs/architecture.md and docs/stack.md
+> agree to recommendations (D26 a, D27 a, D28 a)
+
+**Work:** `composer.json` (PSR-4 `Htzone\`, PHPUnit 11, PHPStan 2 + strict rules, CS Fixer 3), multi-stage `Dockerfile`, `compose.yaml`, `docker/` (Apache vhost with security headers and front-controller routing, php.ini, prod OPcache, dev Xdebug, dev assertions), `public/index.php` placeholder, `src/bootstrap.php`, `Infrastructure\Config` (env with validated defaults, 5 unit tests), PHPStan/CS Fixer/PHPUnit configs (3 suites), `.github/workflows/ci.yml`, `.env.example`, `.dockerignore`, `.vscode/launch.json`.
+**Verified (real output):** CS Fixer 0 files to fix · PHPStan level max `[OK] No errors` · PHPUnit `OK (5 tests, 14 assertions)` · `curl localhost:8080/` 200 with CSP, nosniff, Referrer- and Permissions-Policy, `/.htaccess` 403 · Apache workers run as `www-data` · prod image: 200, `APP_ENV=prod`, no Xdebug, OPcache on with `validate_timestamps=0`, code not writable · Xdebug off by default and on with `XDEBUG_MODE=debug` · PHP-check hook: clean file exit 0, planted type error exit 2 with the line.
+**Bugs found and fixed:** (1) the prod image returned 500. Composer built a classmap-only autoloader before `src/` was copied, so `Config` wasn't in it. Fixed by installing with `--no-autoloader` and running `dump-autoload` after copying `src/`. (2) PHPUnit warned that `zend.assertions` can't be switched at runtime. Assertions are now on through a dev-only ini file; prod keeps them compiled out.
+**Claude suggestion changed/rejected:** Claude's first `Config::pick()` was a one-line nested ternary that was hard to read and fragile in precedence. It was rewritten into a plain `read()` plus explicit `strtolower`, test-first.
+**Options offered:** D26 Docker layout · D27 Xdebug · D28 CI runner.
+**Decision:** D26 a · D27 a · D28 a. Port 8080 inside the container (needed for non-root) changed without asking and recorded.
+**Artifacts:** files above, `docs/stack.md`, `docs/decisions.md` (D26–D28), `README.md` (Run).
+
+**Next step suggested:** `/developer S1 Migrations and import`

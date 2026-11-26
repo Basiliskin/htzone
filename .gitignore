@@ -13,3 +13,6 @@ var/
 *.sqlite
 test-results/
 playwright-report/
+
+# tool caches
+var/cache/

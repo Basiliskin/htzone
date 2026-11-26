@@ -1,0 +1,7 @@
+# Routing lives in docker/apache.conf (AllowOverride None, faster and explicit).
+# This file is kept only for hosts that run the app on a shared Apache with overrides enabled.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [QSA,L]
+</IfModule>

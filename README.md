@@ -6,7 +6,13 @@ Search a 1000-product catalog in Hebrew, English or both — by product name or 
 - **Stack:** PHP 8.3 (no framework) · SQLite + FTS5 · vanilla JS/CSS (RTL) · Docker · GitHub Actions.
 
 ## Run & load catalog
-_TBD in S0/S1 — see `docs/stack.md`._
+Needs only Docker.
+```bash
+docker compose up -d --build                 # dev container (PHP 8.3 + Apache), http://localhost:8080
+docker compose exec app composer install     # dependencies
+docker compose exec app composer check       # format check + PHPStan (max) + PHPUnit
+```
+Loading the catalog (`bin/import`) arrives in S1. All commands: [`docs/stack.md`](docs/stack.md).
 
 ## Key decisions
 Full list with reasons: [`docs/decisions.md`](docs/decisions.md).
