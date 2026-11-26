@@ -299,3 +299,13 @@ How the work was done with Claude, step by step. Prompts are captured verbatim i
 **Work:** the same 68 broad queries (the brief's examples, QA queries, and words shared with the new tags) were run on the old and the new `enrichment.jsonl`, and the top 5 were diffed and read by name.
 **Verified (real output):** 26 of 68 changed. Most are reordering or improvements (`heating`, `fresh`, `לנקות` 0 → 4, `נער` 0 → 11, `running shoes`: there are no running shoes in the catalog, and the old #2–3 were a shoe rack and cabinet). Accepted losses: `טיול` gets bike computer P0834 at #4, and `runner rug` gets running bag P0898 at #4. Removing the duplicate tag "ציוד לטיולים" (14 products) didn't move `טיול`, but the plural query still works, so it stays removed (308 tags, not 322).
 **Claude suggestion changed:** "all gates green" was not taken as proof of no regression, because the relevance rows cover only 28 queries. The broader diff found the two small losses above.
+
+## 2026-11-26 14:50 : qa — F9 Lighthouse Accessibility
+
+**User input:**
+> next -  Lighthouse Accessibility - write me step by step instructions
+> (then a screenshot of the result)
+
+**Work:** step-by-step DevTools instructions given (Incognito, after a warm-up load, Accessibility only, mobile and desktop, optional snapshot of a results page). The user ran it on the live URL.
+**Verified (real output):** a screenshot shows Lighthouse Accessibility **100** for https://htzone.onrender.com/ (start page), plus 10 "additional items to manually check" that Lighthouse doesn't score.
+**Artifacts:** `README.md` (*How it was tested*), `docs/qa-report.md` (AC-5.4 row, F9 closed), `docs/design.md`.

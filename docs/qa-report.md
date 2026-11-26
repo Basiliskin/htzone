@@ -43,7 +43,7 @@ Run 2026-11-26 on `main` @ `427073b`, local dev container and live https://htzon
 | AC-5.1 lang/dir, logical CSS | UX pass; design.md | ✅ |
 | AC-5.2 1 / 4 columns, no h-scroll | UX pass: 360 → scrollWidth 360, list cards; 1280 → 4 × 280 px | ✅ manual |
 | AC-5.3 `/`, `Esc`, focus visible | UX pass: `/` → `#q`; Esc → idle; every tab stop has a 3 px outline | ✅ manual |
-| AC-5.4 AA contrast, reduced motion | `styles.css:206`; **Lighthouse not run** | 🟡 manual gap (F9) |
+| AC-5.4 AA contrast, reduced motion | `styles.css:206`; Lighthouse Accessibility **100** on the live URL (2026-11-26) | ✅ (F9 closed) |
 | AC-5.5 `?q=` + history | `state.test.js`; UX pass URL | ✅ |
 | AC-6.1–6.4 | Integration suite | ✅ |
 | AC-7.1–7.3 | `KernelTest`; header dump §4 | ✅ HSTS added (F3), live after deploy |
@@ -177,7 +177,7 @@ User: F2 should be fixed too, limited on the server. D1 (a) and D2 (a) were take
 | F5, F6 | ignored (deliberate, documented) | |
 | F7 | **fixed**: checkout/setup-node/upload-artifact v7, setup-buildx v4, build-push v7 (none of the removed inputs are used) | CI run 45819604339 on `6bd7aba`: all 3 jobs green, no Node 20 warning |
 | F8 | **fixed**: placeholder removed, time note, QA line in *How it was tested*, a QA example in *Working with Claude*, 414 + HSTS in the API/defaults lines | README |
-| F9 | **open**: the user runs Lighthouse on the live URL | |
+| F9 | **closed**: the user ran Lighthouse Accessibility on https://htzone.onrender.com (Incognito): **100**. Recorded in the README *How it was tested* | 2026-11-26 |
 
 Re-run after the fixes: see SESSION-LOG (QA entry).
 

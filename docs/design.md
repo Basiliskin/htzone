@@ -108,7 +108,7 @@ The page state lives on `body[data-state]`, which is one of `idle | short | load
 - A skip link to the search goes first in the DOM. Every icon-only button has an `aria-label`. Decorative icons and emoji are `aria-hidden`.
 - Contrast is AA or better for all text (values in §2). Interactive targets are at least 40×40px.
 - `prefers-reduced-motion` disables the shimmer, hover lift and hero transition.
-- Target is Lighthouse accessibility ≥ 95, checked manually in S5 and noted in the README.
+- Target is Lighthouse accessibility ≥ 95, checked manually in S5 and noted in the README. **Result: 100** on the live site (2026-11-26).
 
 ## 6. Notes for implementation (S5)
 
