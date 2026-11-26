@@ -186,3 +186,18 @@ How the work was done with Claude, step by step. Prompts are captured verbatim i
 **Artifacts:** files above, `docs/decisions.md` (D35–D36), `docs/architecture.md` §2, §8, §9, `docs/design.md` §2 (font files), `docs/stack.md`, `README.md`.
 
 **Next step suggested:** `/developer S6 E2E`
+
+## 2026-11-26 22:00 : developer S6 — E2E
+
+**User input:**
+> /developer S6 E2E
+> agree to recomendations
+
+**Options offered:** D37 how the test sees the skeleton (a hold the request with `page.route`, then continue to the real server / b watch `data-state` pass through loading / c skip the skeleton) · D38 where E2E runs in CI (a extra steps in the `image` job against the smoke-test prod container / b a separate job rebuilding the image / c the dev image in `checks`). Stated defaults: `E2E_BASE_URL` (default localhost:8080) with no Playwright `webServer`, Chromium only, `@playwright/test` pinned to 1.65.1, nonsense query `zzqxv` (checked `total:0`, no suggestion), trace + screenshot only on failure.
+**Decision:** D37 a · D38 a, plus the defaults.
+**Work:** `e2e/search.spec.ts` (3 tests), `playwright.config.ts`, `package.json` (`e2e` script, devDependency) + `package-lock.json`, CI `image` job (setup-node → `npm ci` → `playwright install --with-deps chromium` → `npm run e2e` → report artifact on failure).
+**Verified (real output):** `npm run e2e` against dev: 3 passed (2.3 s); `--repeat-each=5`: 15 passed; against the prod image (`docker build --target prod`, port 8081, `CI=1`): 3 passed. `composer check`: CS Fixer 0 of 74, PHPStan max `[OK] No errors`, PHPUnit `OK (172 tests, 10540 assertions)`; `npm test` 15/15. Spec passes `tsc --strict` (the config only lacks `@types/node` for `process`, not added). Mutation check (files backed up and copied back, diff-verified): no skeleton render, Retry running `''`, raw agorot instead of `₪`, no focus after Retry → each fails exactly 1 test. CI itself not yet run (nothing pushed).
+**Claude suggestion changed:** Claude's first Retry test expected an "iPhone 16" card; the catalog has none (D14, missing-model case), so it now asserts the notice. The "Retry runs nothing" mutation only failed on the 30 s test timeout, so `waitForRequest` got a 5 s limit. A `git checkout` restore in the mutation script was blocked by the auto-mode classifier; switched to a scratchpad backup + copy.
+**Artifacts:** files above, `.github/workflows/ci.yml`, `docs/decisions.md` (D37–D38), `docs/stack.md`, `README.md`.
+
+**Next step suggested:** `/devops deploy per docs/stack.md and verify the live site`

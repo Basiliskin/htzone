@@ -13,7 +13,7 @@ Project-specific input for the generic role skills in `.claude/skills/`. Command
 | Static analysis | PHPStan (max level), PHP CS Fixer (PSR-12) |
 | Tests | PHPUnit (unit, integration, relevance), Playwright (one E2E) |
 | Runtime | `php:8.3.37-apache-trixie` (mod_php, SQLite 3.46.1) in Docker. One `Dockerfile`, stages `dev` (Composer + Xdebug, project mounted) and `prod` (code baked in, OPcache, read-only code) (D18, D26). Apache runs as `www-data` on port **8080**; DB built inside the image in S1 |
-| CI | GitHub Actions, inside the same `dev` image (D28): composer validate → format check → PHPStan → PHPUnit → enrichment check → build `prod` image + smoke test (200, CSP header, non-root) |
+| CI | GitHub Actions, inside the same `dev` image (D28): composer validate → format check → PHPStan → PHPUnit → enrichment check → build `prod` image + smoke test (200, CSP header, non-root) → Playwright E2E against that container (D38) |
 | Hosting | Render free web service (Docker), keep-awake ping to `/health` |
 
 ## Commands (confirmed in S0)
@@ -30,7 +30,7 @@ Project-specific input for the generic role skills in `.claude/skills/`. Command
 | Format check / fix | `docker compose exec app vendor/bin/php-cs-fixer fix --dry-run --diff` / `... fix` |
 | Step debugging (D27) | `XDEBUG_MODE=debug docker compose up -d`, then VS Code "Listen for Xdebug (Docker)" (`.vscode/launch.json`, port 9003, PHP Debug extension). Back to normal: `docker compose up -d` |
 | JS unit tests (D36) | `npm test` (= `node --test`, Node ≥ 22, no `npm install` needed) |
-| E2E _(S6)_ | `npx playwright test` (against `http://localhost:8080`) |
+| E2E (S6, D37–D38) | Once: `npm ci && npx playwright install chromium`. Then `npm run e2e` (= `playwright test`, against `http://localhost:8080`; set `E2E_BASE_URL` for another server, e.g. the prod image on 8081). Failure trace: `npx playwright show-trace test-results/…/trace.zip` |
 | Build / run prod image | `docker build -t htzone .` / `docker run --rm -p 8080:8080 htzone` |
 | Open | http://localhost:8080 (compose maps 8080 → container 8080) |
 | Logs | `docker compose logs -f app` |

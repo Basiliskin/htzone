@@ -2,11 +2,15 @@
   "name": "htzone-frontend",
   "private": true,
   "type": "module",
-  "description": "No build step: public/assets/*.js is served as-is. This file only runs the JS tests (D36).",
+  "description": "No build step: public/assets/*.js is served as-is. This file only runs the tests: JS unit tests (D36, no install needed) and the Playwright E2E (S6).",
   "engines": {
     "node": ">=22"
   },
   "scripts": {
-    "test": "node --test \"tests/js/**/*.test.js\""
+    "test": "node --test \"tests/js/**/*.test.js\"",
+    "e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.1"
   }
 }
