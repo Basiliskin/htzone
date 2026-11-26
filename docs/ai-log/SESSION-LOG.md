@@ -73,3 +73,20 @@ How the work was done with Claude, step by step. Prompts are captured verbatim i
 **Artifacts:** `prototypes/variant-{a,b,c}.html`, `docs/design.md`, `docs/requirements.md` (AC-2.4), `docs/decisions.md` (D20–D22), `README.md`.
 
 **Next step suggested:** `/data enrich the catalog and generate derived data per docs/decisions.md and docs/architecture.md`
+
+## 2026-11-26 14:30 : data — prices, enrichment, validation
+
+**User input:**
+> /data enrich the catalog and generate derived data per docs/decisions.md and docs/architecture.md
+> D23 a, D24 b, D25 b
+> ok (spot-check accepted)
+
+**Work:** wrote `data/ENRICHMENT-GUIDE.md` and `bin/check-enrichment` (tested with a planted bad file: all 10 errors caught; a good file passes; missing file → exit 2). Drafted `data/price-ranges.json` (80 subcategories; script confirmed none missing). Ran 10 parallel tagging agents (P0001–P1000), merged them, full check passed: `✓ enrichment.jsonl: 1000 products valid (all 1000 catalog ids covered) · avg tags he 10.7 / en 5.1 · data issues reported: 31`.
+**How Claude's output was verified:** check script · coverage of every example query · review of every doubt the agents raised · a random 20-product spot-check with the developer.
+**Claude suggestion changed/rejected:** Claude's agents added tags implying health benefits the rows don't claim ("קורונה" on an oximeter, "אנטי אייג׳ינג", "כאבי מחזור", "דיכאון חורף") → removed. "בלי שואב אבק" on vacuum bags would have matched vacuum searches → removed. A sofa hand vacuum lacked the hair tag that example 5 needs → added. Unsupported series name "lenovo tab" → removed.
+**Found:** 31 CSV data problems (typos, names that don't match the product, Persian letters in P0014) → `docs/data.md` §2, for the client email. Process lesson: parallel agents shared a scratch folder and overwrote each other's helper scripts (outputs unaffected).
+**Options offered:** D23 line format · D24 price granularity · D25 how to tag 1000 products.
+**Decision:** D23 a · D24 b · D25 b.
+**Artifacts:** `data/enrichment.jsonl`, `data/enrichment-parts/part-01…10.jsonl`, `data/price-ranges.json`, `data/ENRICHMENT-GUIDE.md`, `bin/check-enrichment`, `docs/data.md`, `docs/decisions.md` (D23–D25), `README.md`.
+
+**Next step suggested:** `/developer S0 scaffold per docs/architecture.md and docs/stack.md`

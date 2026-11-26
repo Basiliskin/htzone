@@ -1,0 +1,196 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/*
+ * Validates Claude-written enrichment against the catalog CSV (rules: data/ENRICHMENT-GUIDE.md).
+ *
+ *   php bin/check-enrichment                     # full check of data/enrichment.jsonl (every catalog id exactly once)
+ *   php bin/check-enrichment --part=path.jsonl   # partial file: only the ids it contains must be valid and in order
+ *
+ * Exit code 0 = valid, 1 = problems (listed), 2 = usage/IO error.
+ */
+
+const CSV_PATH = __DIR__ . '/../assets/catalog_no_prices.csv';
+const FULL_PATH = __DIR__ . '/../data/enrichment.jsonl';
+const HE_MIN = 8;
+const HE_MAX = 20;
+const EN_MIN = 4;
+const EN_MAX = 12;
+const TAG_MIN_LEN = 2;
+const TAG_MAX_LEN = 40;
+const BANNED = ['מוצר', 'איכותי', 'מבצע', 'best', 'sale', 'product', 'quality'];
+
+/** @return list<string> */
+function catalogIds(string $path): array
+{
+    $handle = fopen($path, 'rb');
+    if ($handle === false) {
+        fwrite(STDERR, "Cannot open {$path}\n");
+        exit(2);
+    }
+    $header = fgetcsv($handle, escape: '');
+    if ($header === false) {
+        fwrite(STDERR, "Empty CSV\n");
+        exit(2);
+    }
+    $header[0] = preg_replace('/^\x{FEFF}/u', '', (string) $header[0]);
+    $idColumn = array_search('id', $header, true);
+    $ids = [];
+    while (($row = fgetcsv($handle, escape: '')) !== false) {
+        $ids[] = (string) $row[(int) $idColumn];
+    }
+    fclose($handle);
+
+    return $ids;
+}
+
+/**
+ * @param mixed $tags
+ * @return list<string> problems
+ */
+function checkTags(mixed $tags, string $field, int $min, int $max, string $forbiddenScript, string $requiredScript): array
+{
+    if (!is_array($tags) || !array_is_list($tags)) {
+        return ["{$field} must be a JSON array"];
+    }
+    $problems = [];
+    $count = count($tags);
+    if ($count < $min || $count > $max) {
+        $problems[] = "{$field} has {$count} tags (allowed {$min}-{$max})";
+    }
+    $seen = [];
+    foreach ($tags as $tag) {
+        if (!is_string($tag)) {
+            $problems[] = "{$field} contains a non-string";
+            continue;
+        }
+        $len = mb_strlen($tag);
+        if ($len < TAG_MIN_LEN || $len > TAG_MAX_LEN) {
+            $problems[] = "{$field} tag \"{$tag}\" length {$len} (allowed " . TAG_MIN_LEN . '-' . TAG_MAX_LEN . ')';
+        }
+        if ($tag !== trim($tag)) {
+            $problems[] = "{$field} tag \"{$tag}\" has leading/trailing spaces";
+        }
+        if (preg_match($forbiddenScript, $tag) === 1) {
+            $problems[] = "{$field} tag \"{$tag}\" is in the wrong language";
+        }
+        if (preg_match($requiredScript, $tag) !== 1) {
+            $problems[] = "{$field} tag \"{$tag}\" has no letters of the expected language";
+        }
+        $key = mb_strtolower($tag);
+        if (isset($seen[$key])) {
+            $problems[] = "{$field} duplicate tag \"{$tag}\"";
+        }
+        $seen[$key] = true;
+        if (in_array($key, BANNED, true)) {
+            $problems[] = "{$field} banned filler tag \"{$tag}\"";
+        }
+    }
+
+    return $problems;
+}
+
+$options = getopt('', ['part:']);
+$partial = isset($options['part']);
+$path = $partial ? (string) $options['part'] : FULL_PATH;
+if (!is_file($path)) {
+    fwrite(STDERR, "File not found: {$path}\n");
+    exit(2);
+}
+
+$catalog = catalogIds(CSV_PATH);
+$catalogIndex = array_flip($catalog);
+$errors = [];
+$seenIds = [];
+$lastIndex = -1;
+$stats = ['lines' => 0, 'he' => 0, 'en' => 0, 'issues' => 0];
+$lines = file($path, FILE_IGNORE_NEW_LINES);
+if ($lines === false) {
+    fwrite(STDERR, "Cannot read {$path}\n");
+    exit(2);
+}
+
+foreach ($lines as $n => $line) {
+    $lineNo = $n + 1;
+    if (trim($line) === '') {
+        $errors[] = "line {$lineNo}: empty line";
+        continue;
+    }
+    try {
+        $item = json_decode($line, true, 8, JSON_THROW_ON_ERROR);
+    } catch (JsonException $e) {
+        $errors[] = "line {$lineNo}: invalid JSON ({$e->getMessage()})";
+        continue;
+    }
+    if (!is_array($item)) {
+        $errors[] = "line {$lineNo}: not an object";
+        continue;
+    }
+    $keys = array_keys($item);
+    sort($keys);
+    if ($keys !== ['id', 'issues', 'tags_en', 'tags_he']) {
+        $errors[] = "line {$lineNo}: keys must be exactly id, tags_he, tags_en, issues (got " . implode(',', $keys) . ')';
+        continue;
+    }
+    $id = $item['id'];
+    if (!is_string($id) || !isset($catalogIndex[$id])) {
+        $errors[] = "line {$lineNo}: unknown id " . json_encode($id);
+        continue;
+    }
+    if (isset($seenIds[$id])) {
+        $errors[] = "line {$lineNo}: duplicate id {$id}";
+        continue;
+    }
+    $seenIds[$id] = true;
+    if ($catalogIndex[$id] < $lastIndex) {
+        $errors[] = "line {$lineNo}: {$id} is out of order";
+    }
+    $lastIndex = $catalogIndex[$id];
+
+    $problems = [
+        ...checkTags($item['tags_he'], 'tags_he', HE_MIN, HE_MAX, '/[A-Za-z]/', '/\p{Hebrew}/u'),
+        ...checkTags($item['tags_en'], 'tags_en', EN_MIN, EN_MAX, '/\p{Hebrew}/u', '/[a-z]/'),
+    ];
+    if (is_array($item['tags_en'])) {
+        foreach ($item['tags_en'] as $tag) {
+            if (is_string($tag) && $tag !== mb_strtolower($tag)) {
+                $problems[] = "tags_en tag \"{$tag}\" must be lowercase";
+            }
+        }
+    }
+    if (!is_array($item['issues']) || !array_is_list($item['issues']) || array_filter($item['issues'], fn ($i) => !is_string($i) || trim($i) === '') !== []) {
+        $problems[] = 'issues must be an array of non-empty strings';
+    }
+    foreach ($problems as $problem) {
+        $errors[] = "line {$lineNo} ({$id}): {$problem}";
+    }
+
+    $stats['lines']++;
+    $stats['he'] += is_array($item['tags_he']) ? count($item['tags_he']) : 0;
+    $stats['en'] += is_array($item['tags_en']) ? count($item['tags_en']) : 0;
+    $stats['issues'] += is_array($item['issues']) ? count($item['issues']) : 0;
+}
+
+if (!$partial) {
+    $missing = array_values(array_diff($catalog, array_keys($seenIds)));
+    if ($missing !== []) {
+        $errors[] = count($missing) . ' catalog ids missing: ' . implode(', ', array_slice($missing, 0, 20)) . (count($missing) > 20 ? ', …' : '');
+    }
+}
+
+$file = basename($path);
+if ($errors !== []) {
+    echo "✗ {$file}: " . count($errors) . " problem(s)\n";
+    foreach (array_slice($errors, 0, 200) as $error) {
+        echo "  - {$error}\n";
+    }
+    exit(1);
+}
+
+$avgHe = $stats['lines'] > 0 ? round($stats['he'] / $stats['lines'], 1) : 0;
+$avgEn = $stats['lines'] > 0 ? round($stats['en'] / $stats['lines'], 1) : 0;
+echo "✓ {$file}: {$stats['lines']} products valid" . ($partial ? ' (partial)' : ' (all ' . count($catalog) . ' catalog ids covered)')
+    . " · avg tags he {$avgHe} / en {$avgEn} · data issues reported: {$stats['issues']}\n";
+exit(0);

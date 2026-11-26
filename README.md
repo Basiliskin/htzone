@@ -21,7 +21,8 @@ Full list with reasons: [`docs/decisions.md`](docs/decisions.md).
 _TBD — example queries: [`docs/requirements.md` §4](docs/requirements.md)._
 
 ## Known limitations
-- Prices are synthetic.
+- Prices are synthetic: generated per subcategory range from a hash of the id (`docs/data.md` §3), so within a subcategory they don't reflect the specific model.
+- The source CSV has 31 data problems (typos, names that don't match the product); they are reported, not edited, and tags carry the correct spelling (`docs/data.md` §2).
 - Images are text placeholders from the provided CSV.
 - Meaning-based search depends on tag coverage; unusual phrasings not covered by tags can miss.
 
@@ -36,4 +37,6 @@ _TBD — example queries: [`docs/requirements.md` §4](docs/requirements.md)._
 Process log: [`docs/ai-log/SESSION-LOG.md`](docs/ai-log/SESSION-LOG.md) (prompts auto-captured in `docs/ai-log/PROMPTS.md`).
 - **Rejected:** Claude first proposed runtime embeddings via an external API + pgvector; replaced with offline enrichment so the deploy has no runtime dependency or secret.
 - **Self-correction caught in prototyping:** Claude's own requirement said to use `dir="auto"` on product names; a screenshot of the prototype showed it flips names starting with English to left-to-right. The requirement and design were changed so names inherit RTL.
+- **Tags written by 10 parallel Claude agents** from one committed guide (`data/ENRICHMENT-GUIDE.md`), verified by a check script, example-query coverage and a human spot-check (`docs/data.md` §5–6).
+- **Rejected in review:** Claude-written tags that implied health claims the products don't make ("קורונה" on an oximeter, "אנטי אייג׳ינג" on an LED mask) and a tag that would make vacuum bags match "שואב אבק".
 - _More examples added as work progresses._
