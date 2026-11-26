@@ -1,1 +1,15 @@
 .DS_Store
+
+# local-only mock interview (skill + outputs)
+.claude/skills/interview/
+docs/interview-*
+.claude/settings.local.json
+
+# runtime / deps
+vendor/
+node_modules/
+.env
+var/
+*.sqlite
+test-results/
+playwright-report/

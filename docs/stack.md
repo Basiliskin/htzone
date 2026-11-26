@@ -1,0 +1,34 @@
+# Stack & commands
+
+Project-specific input for the generic role skills in `.claude/skills/`. Commands marked _(planned)_ are created in S0 by `/developer` — update this file when they change.
+
+## Stack
+| Concern | Choice |
+|---|---|
+| Language | PHP 8.3, `declare(strict_types=1)` everywhere, Composer, PSR-4 autoloading, no framework |
+| DB | SQLite + FTS5 (full-text index, prefix matching, BM25 ranking with field weights), accessed via PDO prepared statements |
+| Migrations | Numbered SQL files in `migrations/` + a small PHP runner, tracked in a `migrations` table |
+| Data | `assets/catalog_no_prices.csv` (source, 1000 products, no prices) + `data/enrichment.jsonl` (Claude-written HE/EN tags, committed) + prices generated with a fixed seed per category, stored in agorot |
+| Frontend | Plain HTML + modern CSS + vanilla JS modules, no build step, served by PHP; RTL, mobile-first |
+| Static analysis | PHPStan (max level), PHP CS Fixer (PSR-12) |
+| Tests | PHPUnit (unit, integration, relevance), Playwright (one E2E) |
+| Runtime | Docker (local + production), non-root, image built with the DB inside |
+| CI | GitHub Actions: format check → PHPStan → PHPUnit → Docker build |
+| Hosting | Render free web service (Docker), keep-awake ping to `/health` |
+
+## Commands _(planned — confirm in S0)_
+| Task | Command |
+|---|---|
+| Start local | `docker compose up -d` (service `app`, project mounted at `/app`) |
+| Install deps | `docker compose exec app composer install` |
+| Migrate + import catalog | `docker compose exec app php bin/import` |
+| Unit + integration + relevance tests | `docker compose exec app vendor/bin/phpunit` |
+| Static analysis | `docker compose exec app vendor/bin/phpstan analyse` |
+| Format check / fix | `docker compose exec app vendor/bin/php-cs-fixer fix --dry-run --diff` / `... fix` |
+| E2E | `npx playwright test` (against `http://localhost:8080`) |
+| Build prod image | `docker build -t htzone .` |
+| Open | http://localhost:8080 |
+
+## Hooks (`.claude/settings.json`)
+- `UserPromptSubmit` → `.claude/hooks/log-prompt.mjs`: appends each prompt to `docs/ai-log/PROMPTS.md` (skips `/interview`).
+- `PostToolUse` (Edit/Write) → `.claude/hooks/php-check.mjs`: for edited `.php` files, runs PHP CS Fixer + PHPStan in the `app` container; silently skips if the container or `vendor/` isn't there yet; reports PHPStan errors back to Claude.
