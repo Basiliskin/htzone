@@ -58,3 +58,18 @@ How the work was done with Claude, step by step. Prompts are captured verbatim i
 **Artifacts:** `docs/architecture.md`, `docs/adr/0001…0003`, `docs/requirements.md` (rows 12, 15, 19), `docs/decisions.md` (D17–D19), `docs/stack.md`.
 
 **Next step suggested:** `/designer build 2 clickable HTML prototypes of the search page per docs/requirements.md, docs/architecture.md and the reference image in assets/`
+
+## 2026-11-26 13:10 : designer — prototypes and design spec
+
+**User input:**
+> /designer build 2 clickable HTML prototypes of the search page per docs/requirements.md, docs/architecture.md and the reference image in assets/
+> D20 c, D21 b, D22 a
+
+**Work:** built `prototypes/variant-a.html` (centred hero) and `variant-b.html` (sticky bar, compact cards, dark mode) from 41 real catalog rows, with a dev panel for latency, a forced error and scenario buttons. Rendered with headless Chrome to verify (note: headless Chrome's minimum viewport is 500px, so the 390px screenshots were cropped and aren't layout bugs).
+**Bugs found by screenshot and fixed:** B's desktop card images had uneven heights (a grid row stretched the image) → `grid-template-rows: auto 1fr`; the brand line was left-aligned on mobile → `<bdi>` instead of `dir="ltr"` on the block.
+**Options offered:** D20 layout (a A / b B / c A + B improvements) · D21 font (a system / b self-hosted Heebo) · D22 dark mode (a skip / b keep).
+**Decision:** D20 c → built `prototypes/variant-c.html` · D21 b · D22 a.
+**Claude suggestion changed/rejected:** Claude's own AC-2.4 prescribed `dir="auto"` on product names; the variant-c screenshot showed "Air Fryer קומפקטי דיגיטלי" flipped to LTR and left-aligned → AC-2.4 rewritten (names inherit RTL, `<bdi>` for brand/price), prototypes fixed.
+**Artifacts:** `prototypes/variant-{a,b,c}.html`, `docs/design.md`, `docs/requirements.md` (AC-2.4), `docs/decisions.md` (D20–D22), `README.md`.
+
+**Next step suggested:** `/data enrich the catalog and generate derived data per docs/decisions.md and docs/architecture.md`

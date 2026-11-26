@@ -58,7 +58,7 @@ The actor is the **Visitor** (anonymous). AC ids are referenced by tests (`AC-x.
 - **AC-2.1** Each Result card shows image, name and a price formatted as `₪1,299` (whole shekels, agorot hidden when zero).
 - **AC-2.2** When a Product has no brand, the card shows no brand line (no empty label or "undefined").
 - **AC-2.3** When an image fails to load, a local fallback image is shown and the layout does not shift.
-- **AC-2.4** Mixed-direction names (`מטהג אוויר חם Air Fryer XL`) display in the correct order (`dir="auto"` / `<bdi>`).
+- **AC-2.4** Mixed-direction names display in the correct order and are right-aligned, including names that *start* with English (`Air Fryer קומפקטי דיגיטלי`). Names inherit the page's `dir="rtl"`; they must **not** use `dir="auto"`, which would flip names starting with Latin letters to LTR. Brand (Latin) is isolated with `<bdi>`.
 - **AC-2.5** At most 24 Results, ordered by relevance (exact brand/model > name > tags/category > description).
 - **AC-2.6** Prices are stable: the same Product shows the same price after re-import and in every environment.
 

@@ -14,3 +14,11 @@
 ### 2026-11-26T10:10:05.523Z : chat
 
 > agree to recomendations
+
+### 2026-11-26T10:13:32.574Z : designer
+
+> /designer build 2 clickable HTML prototypes of the search page per docs/requirements.md, docs/architecture.md and the reference image in assets/
+
+### 2026-11-26T10:20:48.521Z : chat
+
+> D20 c, D21 b, D22 a

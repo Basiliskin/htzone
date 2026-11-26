@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>htzone — חיפוש מוצרים (וריאנט A: Hero ממורכז)</title>
+<style>
+  :root {
+    --bg: #f5f6f8; --surface: #fff; --text: #111214; --muted: #5a5f68; --line: #e3e5e9;
+    --accent: #b8f13d; --ink: #111214; --focus: #2563eb; --danger: #b42318; --notice-bg: #fff8e1; --notice-text: #6b4e00;
+    --radius-lg: 20px; --radius: 14px; --radius-pill: 999px;
+    --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s7: 48px; --s8: 72px;
+    --font: system-ui, -apple-system, "Segoe UI", "Heebo", "Assistant", Arial, sans-serif;
+    --shadow: 0 1px 2px rgb(16 24 40 / .06), 0 1px 3px rgb(16 24 40 / .08);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.5; }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+  .visually-hidden { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  header.top { background: var(--surface); border-block-end: 1px solid var(--line); }
+  .top-inner { max-inline-size: 1240px; margin-inline: auto; padding: var(--s4) var(--s5); display: flex; align-items: center; justify-content: space-between; }
+  .logo { font-weight: 800; font-size: 1.6rem; letter-spacing: -.02em; direction: ltr; }
+  .logo::after { content: ""; display: inline-block; inline-size: .45em; block-size: .45em; border-radius: 50%; background: var(--accent); margin-inline-start: 2px; }
+  .kbd-hint { color: var(--muted); font-size: .85rem; }
+  kbd { border: 1px solid var(--line); border-radius: 6px; padding: 0 6px; background: var(--bg); font-family: inherit; }
+
+  .hero { text-align: center; padding: var(--s8) var(--s5) var(--s6); transition: padding .25s ease; }
+  .hero h1 { margin: 0; font-size: clamp(2rem, 6vw, 3.4rem); font-weight: 800; letter-spacing: -.02em; transition: font-size .25s ease; }
+  .hero p { margin: var(--s2) 0 var(--s6); color: var(--muted); font-size: clamp(1rem, 2.4vw, 1.25rem); }
+  body:not([data-state="idle"]) .hero { padding-block: var(--s6) var(--s4); }
+  body:not([data-state="idle"]) .hero h1 { font-size: clamp(1.4rem, 4vw, 2rem); }
+  body:not([data-state="idle"]) .hero p { margin-block-end: var(--s4); }
+
+  form.search { max-inline-size: 760px; margin-inline: auto; display: flex; align-items: center; gap: var(--s2); background: var(--surface); border: 1.5px solid var(--line); border-radius: var(--radius-pill); padding: 6px; padding-inline-start: var(--s5); box-shadow: var(--shadow); }
+  form.search:focus-within { border-color: var(--ink); }
+  form.search input { flex: 1; min-inline-size: 0; border: 0; outline: 0; font: inherit; font-size: 1.1rem; background: transparent; color: var(--text); padding-block: var(--s3); }
+  form.search input::placeholder { color: #7a7f88; }
+  .clear { border: 0; background: none; font-size: 1.3rem; color: var(--muted); cursor: pointer; inline-size: 40px; block-size: 40px; border-radius: 50%; }
+  .clear:hover { background: var(--bg); }
+  .go { display: inline-flex; align-items: center; gap: var(--s2); border: 0; background: var(--ink); color: #fff; font: inherit; font-weight: 700; font-size: 1.05rem; padding: var(--s3) var(--s5); border-radius: var(--radius-pill); cursor: pointer; }
+  .go svg { inline-size: 20px; block-size: 20px; }
+  @media (max-width: 480px) { .go span { display: none; } .go { padding: var(--s3); } form.search { padding-inline-start: var(--s4); } }
+
+  .chips { list-style: none; padding: 0; margin: var(--s5) auto 0; display: flex; flex-wrap: wrap; gap: var(--s2); justify-content: center; max-inline-size: 760px; }
+  .chip { border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; font-size: .92rem; padding: 6px 14px; border-radius: var(--radius-pill); cursor: pointer; }
+  .chip:hover { border-color: var(--ink); }
+  body:not([data-state="idle"]) .hero .chips { display: none; }
+
+  main { max-inline-size: 1240px; margin-inline: auto; padding: 0 var(--s5) var(--s8); }
+  .results-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s4); margin-block: var(--s4); }
+  .results-head h2 { margin: 0; font-size: clamp(1.25rem, 3vw, 1.75rem); font-weight: 800; }
+  #count { color: var(--muted); }
+  .notice { background: var(--notice-bg); color: var(--notice-text); border-radius: var(--radius); padding: var(--s3) var(--s4); margin-block-end: var(--s4); }
+  .link { background: none; border: 0; padding: 0; font: inherit; color: var(--focus); text-decoration: underline; cursor: pointer; }
+
+  .grid { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s4); grid-template-columns: 1fr; }
+  @media (min-width: 560px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (min-width: 960px) { .grid { grid-template-columns: repeat(4, 1fr); gap: var(--s5); } }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); overflow: hidden; display: flex; flex-direction: column; transition: transform .15s ease, box-shadow .15s ease; }
+  .card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgb(16 24 40 / .08); }
+  .card .media { aspect-ratio: 1 / 1; background: #eceef1; }
+  .card img { inline-size: 100%; block-size: 100%; object-fit: cover; display: block; }
+  .card .body { padding: var(--s4) var(--s4) var(--s5); text-align: center; display: flex; flex-direction: column; gap: var(--s2); flex: 1; }
+  .card h3 { margin: 0; font-size: 1.05rem; font-weight: 500; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-block-size: 2.9em; }
+  .card .price { margin-block-start: auto; font-size: 1.6rem; font-weight: 800; }
+
+  .skeleton .ph-img { aspect-ratio: 1 / 1; background: #eceef1; }
+  .skeleton .ph-line { block-size: 14px; margin: var(--s4) var(--s5) 0; border-radius: 7px; background: #eceef1; }
+  .skeleton .ph-line.short { inline-size: 40%; margin-inline: auto; block-size: 22px; margin-block-end: var(--s5); }
+  .skeleton > * { background-image: linear-gradient(90deg, #eceef1 0, #f6f7f9 40%, #eceef1 80%); background-size: 200% 100%; animation: shimmer 1.2s linear infinite; }
+  @keyframes shimmer { to { background-position: -200% 0; } }
+
+  .panel { text-align: center; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: var(--s7) var(--s5); }
+  .panel h2 { margin: 0 0 var(--s2); font-size: 1.4rem; }
+  .panel p { margin: 0 0 var(--s4); color: var(--muted); }
+  .panel .icon { font-size: 2.4rem; }
+  .panel.error h2 { color: var(--danger); }
+  .btn { border: 1.5px solid var(--ink); background: var(--surface); color: var(--ink); font: inherit; font-weight: 700; padding: var(--s2) var(--s5); border-radius: var(--radius-pill); cursor: pointer; }
+
+  /* state visibility */
+  #results, #empty, #error, #short { display: none; }
+  body[data-state="loading"] #results, body[data-state="results"] #results { display: block; }
+  body[data-state="loading"] .results-head, body[data-state="loading"] #notice { visibility: hidden; }
+  body[data-state="empty"] #empty, body[data-state="error"] #error, body[data-state="short"] #short { display: block; }
+
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+  /* prototype-only dev panel */
+  .dev { position: fixed; inset-block-end: 12px; inset-inline-start: 12px; z-index: 10; font-size: .85rem; }
+  .dev details { background: #1f2329; color: #fff; border-radius: 12px; padding: 8px 12px; box-shadow: 0 6px 24px rgb(0 0 0 / .25); max-inline-size: 300px; }
+  .dev summary { cursor: pointer; font-weight: 700; }
+  .dev label { display: block; margin-block-start: 8px; }
+  .dev select { font: inherit; }
+  .dev-demos { display: flex; flex-wrap: wrap; gap: 6px; margin-block-start: 8px; }
+  .dev-demos button { font: inherit; font-size: .8rem; border: 1px solid #555; background: #2b3038; color: #fff; border-radius: 999px; padding: 3px 10px; cursor: pointer; }
+</style>
+</head>
+<body data-state="idle">
+<a class="visually-hidden" href="#q">דלג לחיפוש</a>
+<header class="top">
+  <div class="top-inner">
+    <div class="logo" aria-label="htzone">htzone</div>
+    <div class="kbd-hint" aria-hidden="true">לחצו <kbd>/</kbd> לחיפוש · <kbd>Esc</kbd> לניקוי</div>
+  </div>
+</header>
+
+<section class="hero">
+  <h1>מה בא לכם למצוא?</h1>
+  <p>תארו מה אתם מחפשים, אנחנו נמצא מוצרים מתאימים</p>
+  <form id="form" class="search" role="search" action="" method="get">
+    <label for="q" class="visually-hidden">חיפוש מוצרים</label>
+    <input id="q" name="q" type="search" dir="auto" autocomplete="off" maxlength="100" placeholder="למשל: מתנה למישהו שאוהב קפה">
+    <button type="button" id="clear" class="clear" aria-label="ניקוי החיפוש" hidden>✕</button>
+    <button class="go" type="submit"><span>חיפוש</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    </button>
+  </form>
+  <ul class="chips" data-chips aria-label="חיפושים לדוגמה"></ul>
+</section>
+
+<main>
+  <div id="live" class="visually-hidden" aria-live="polite" role="status"></div>
+
+  <section id="results" aria-labelledby="results-title">
+    <div class="results-head"><h2 id="results-title">מצאנו מוצרים בשבילכם</h2><span id="count"></span></div>
+    <div id="notice" class="notice" hidden></div>
+    <ul id="grid" class="grid"></ul>
+  </section>
+
+  <section id="empty" class="panel">
+    <div class="icon" aria-hidden="true">🔍</div>
+    <h2>לא מצאנו מוצרים עבור „<bdi id="empty-q"></bdi>”</h2>
+    <p>נסו מילים אחרות, או אחד מהחיפושים האלה:</p>
+    <ul class="chips" data-chips></ul>
+  </section>
+
+  <section id="error" class="panel error" role="alert">
+    <div class="icon" aria-hidden="true">⚠️</div>
+    <h2>משהו השתבש בחיפוש</h2>
+    <p>לא הצלחנו לקבל תוצאות כרגע. נסו שוב בעוד רגע.</p>
+    <button type="button" id="retry" class="btn">נסו שוב</button>
+  </section>
+
+  <section id="short" class="panel"><p>הקלידו לפחות 2 תווים כדי לחפש</p></section>
+</main>
+
+<aside class="dev" aria-label="פאנל הדגמה (רק באב־טיפוס)">
+  <details>
+    <summary>⚙︎ הדגמת מצבים</summary>
+    <label>השהיית שרת
+      <select id="dev-latency"><option value="150">150ms</option><option value="600" selected>600ms</option><option value="2000">2s (לראות שלד טעינה)</option></select>
+    </label>
+    <label><input type="checkbox" id="dev-fail"> לדמות שגיאת שרת</label>
+    <div class="dev-demos">
+      <button type="button" data-demo="iPhone 16">דגם חסר (iPhone 16)</button>
+      <button type="button" data-demo="מקרוגל">שגיאת כתיב (מקרוגל)</button>
+      <button type="button" data-demo="xyzzy">אין תוצאות</button>
+      <button type="button" data-demo="error">שגיאה</button>
+      <button type="button" data-demo="מטבח">תמונה שבורה + שמות ארוכים</button>
+      <button type="button" data-demo="שואב Dyson">עברית + English</button>
+    </div>
+  </details>
+</aside>
+
+
+<script>
+function renderCard(p) {
+  return el('li', { class: 'card' },
+    el('div', { class: 'media' }, img(p)),
+    el('div', { class: 'body' },
+      el('h3', { title: p.name }, p.name),
+      el('div', { class: 'price' }, el('bdi', { dir: 'ltr' }, formatPrice(p.price)))));
+}
+// ===== MOCK ENGINE (prototype only — the real search runs in PHP) =====
+const PRODUCTS = [{"id": "P0001", "name": "מטהג אוויר חם Air Fryer XL", "brand": "Philips", "category": "מטבח ובישול", "price": 779, "image": "https://placehold.co/600x600/f4f4f5/27272a/png?text=Air%20Fryer", "tags": "מתנה בישול מטבח"}, {"id": "P0002", "name": "Air Fryer קומפקטי דיגיטלי", "brand": "Tefal", "category": "מטבח ובישול", "price": 1089, "image": "https://placehold.co/600x600/f4f4f5/27272a/png?text=Air%20Fryer", "tags": ""}, {"id": "P0003", "name": "בלנדר עוצמתי High Speed", "brand": "Ninja", "category": "מטבח ובישול", "price": 789, "image": "https://placehold.co/broken-on-purpose.png", "tags": "מתנה בישול"}, {"id": "P0014", "name": "מכשיר בישול ואקום Sous Vide", "brand": "Anova", "category": "מטבח ובישול", "price": 809, "image": "https://placehold.co/600x600/f4f4f5/27272a/png?text=Sous%20Vide", "tags": "מתנה בישול שף"}, {"id": "P0101", "name": "מכונת אספרסו אוטומטית דלונגי מגניפיקה", "brand": "De'Longhi", "category": "קפה, משקאות וגורמה", "price": 3239, "image": "https://placehold.co/600x600/f4f4f5/27272a/png?text=Espresso%20Machine", "tags": "מתנה קפה"}, {"id": "P0102", "name": "מכונת קפסולות נספרסו וורטואו", "brand": "Nespresso", "category": "קפה, משקאות וגורמה", "price": 349, "image": "https://placehold.co/600x600/f4f4f5/27272a/png?text=Capsule%20Coffee%20Machine", "tags": ""}, {"id": "P0103", "name": "מכונת קפה טפטוף מליטה", "brand": "Melitta", "category": "קפה, משקאות וגורמה", "price": 1859, "image": "https://placehold.co/600x600/f4f4f5/27272a/png?text=Drip%20Coffee%20Maker", "tags": ""}, {"id": "P0104", "name": "מכונת קפה אוטומטית טוחנת פולים יורה", "brand": "Jura", "category": "קפה, משקאות וגורמה", "price": 2469, "image": "https://placehold.co/600x600/f4f4f5/27272a/png?text=Bean%20to%20Cup%20Machine", "tags": ""}, {"id": "P0108", "name": "מכונת אספרסו חצי-אוטומטית סייג' בריסטה אקספרס", "brand": "Sage", "category": "קפה, משקאות וגורמה", "price": 1459, "image": "https://placehold.co/600x600/f4f4f5/27272a/png?text=Espresso%20Machine", "tags": ""}, {"id": "P0121", "name": "טוחנת קפה ידנית עם ציר קרמי", "brand": null, "category": "קפה, משקאות וגורמה", "price": 1979, "image": "https://placehold.co/600x600/f4f4f5/27272a/png?text=Manual%20Coffee%20Grinder", "tags": "מתנה קפה"}, {"id": "P0146", "name": "ספל קפה קרמיקה גדול עם ידית רחבה", "brand": null, "category": "קפה, משקאות וגורמה", "price": 2459, "image": "https://placehold.co/600x600/f4f4f5/27272a/png?text=Coffee%20Mug", "tags": "מתנה קפה"}, {"id": "P0201", "name": "שואב אבק אנכי אלחוטי דייסון עם חיישן לייזר לגילוי אבק", "brand": "Dyson", "category": "מוצרי חשמל לבית", "price": 909, "image": "https://placehold.co/600x600/f4f4f5/27272a/png?text=cordless%20vacuum", "tags": "dyson vacuum"}, {"id": "P0202", "name": "רובוט שואב ושוטף רוברוק עם תחנת ריקון ושטיפה אוטומטית", "brand": "Roborock", "category": "מוצרי חשמל לבית", "price": 649, "image": "https://placehold.co/600x600/f4f4f5/27272a/png?text=robot%20vacuum", "tags": "robot vacuum"}, {"id": "P0203", "name": "רובוט שואב שיאומי עם מיפוי לייזר ובקרת אפליקציה", "brand": "Xiaomi", "category": "מוצרי חשמל לבית", "price": 439, "image": "https://placehold.co/600x600/f4f4f5/27272a/png?text=robot%20vacuum", "tags": "robot vacuum"}, {"id": "P0207", "name": "שואב אבק יד נטענת טורנדו לניקוי רכב ורהיטים", "brand": "Tornado", "category": "מוצרי חשמל לבית", "price": 959, "image": "https://placehold.co/600x600/f4f4f5/27272a/png?text=handheld%20vacuum", "tags": "שערות ספה רהיטים שיער כלב"}, {"id": "P0209", "name": "שואב אבק אנכי אלחוטי סמסונג עם תצוגת חיישני אבק", "brand": "Samsung", "category": "מוצרי חשמל לבית", "price": 4799, "image": "https://placehold.co/600x600/f4f4f5/27272a/png?text=cordless%20vacuum", "tags": ""}, {"id": "P0213", "name": "רובוט שואב בסיסי לבית עם מצב ניקוי אוטומטי", "brand": null, "category": "מוצרי חשמל לבית", "price": 3709, "image": "https://placehold.co/600x600/f4f4f5/27272a/png?text=robot%20vacuum", "tags": ""}, {"id": "P0225", "name": "שוטף שטיחים קומפקטי ביסל לבתים עם בעלי חיים", "brand": "Bissell", "category": "מוצרי חשמל לבית", "price": 2539, "image": "https://placehold.co/600x600/f4f4f5/27272a/png?text=portable%20carpet%20cleaner", "tags": "כלב חיות מחמד שטיח ספה"}, {"id": "P0279", "name": "מיקרוגל סמסונג עם גריל משולב ותוכניות אוטומטיות", "brand": "Samsung", "category": "מוצרי חשמל לבית", "price": 1409, "image": "https://placehold.co/600x600/f4f4f5/27272a/png?text=microwave%20oven", "tags": ""}, {"id": "P0285", "name": "תנור בנוי משולב מיקרוגל סימנס לחיסכון במקום", "brand": "Siemens", "category": "מוצרי חשמל לבית", "price": 2329, "image": "https://placehold.co/600x600/f4f4f5/27272a/png?text=combination%20oven%20microwave", "tags": ""}, {"id": "P0305", "name": "מחשב נייד MacBook Air 13 אינץ'", "brand": "Apple", "category": "מחשבים ועבודה מהבית", "price": 3749, "image": "https://placehold.co/600x600/f4f4f5/27272a/png?text=macbook", "tags": ""}, {"id": "P0306", "name": "מחשב נייד MacBook Pro 14 אינץ'", "brand": "Apple", "category": "מחשבים ועבודה מהבית", "price": 1359, "image": "https://placehold.co/600x600/f4f4f5/27272a/png?text=macbook%20pro", "tags": ""}, {"id": "P0308", "name": "טאבלט iPad עם תמיכה ב-Apple Pencil", "brand": "Apple", "category": "מחשבים ועבודה מהבית", "price": 5599, "image": "https://placehold.co/600x600/f4f4f5/27272a/png?text=ipad", "tags": ""}, {"id": "P0401", "name": "סמארטפון חכם 6.1 אינץ' 128GB", "brand": "Apple", "category": "סלולר, אודיו וגאדג'טים", "price": 2689, "image": "https://placehold.co/600x600/f4f4f5/27272a/png?text=smartphone", "tags": "iphone אייפון אפל טלפון"}, {"id": "P0402", "name": "סמארטפון 6.7 אינץ' 256GB מסך AMOLED", "brand": "Samsung", "category": "סלולר, אודיו וגאדג'טים", "price": 5099, "image": "https://placehold.co/600x600/f4f4f5/27272a/png?text=android%20phone", "tags": ""}, {"id": "P0407", "name": "סמארטפון קומפקטי 5.4 אינץ' 128GB", "brand": "Apple", "category": "סלולר, אודיו וגאדג'טים", "price": 3379, "image": "https://placehold.co/600x600/f4f4f5/27272a/png?text=mini%20smartphone", "tags": "iphone אייפון אפל טלפון"}, {"id": "P0413", "name": "סמארטפון פרו עם מצלמה משולשת 6.7 אינץ' 512GB", "brand": "Apple", "category": "סלולר, אודיו וגאדג'טים", "price": 4189, "image": "https://placehold.co/600x600/f4f4f5/27272a/png?text=pro%20smartphone", "tags": "iphone אייפון אפל טלפון פרו"}, {"id": "P0421", "name": "אוזניות פרימיום עם ANC אדפטיבי וקייס טעינה אלחוטית", "brand": "Apple", "category": "סלולר, אודיו וגאדג'טים", "price": 5489, "image": "https://placehold.co/600x600/f4f4f5/27272a/png?text=premium%20earbuds", "tags": ""}, {"id": "P0439", "name": "שעון חכם עם מדידת דופק ו-GPS מובנה", "brand": "Apple", "category": "סלולר, אודיו וגאדג'טים", "price": 2419, "image": "https://placehold.co/600x600/f4f4f5/27272a/png?text=smartwatch", "tags": ""}, {"id": "P0539", "name": "Fire TV Stick 4K Max", "brand": "Amazon", "category": "טלוויזיה, גיימינג ובידור", "price": 3659, "image": "https://placehold.co/600x600/f4f4f5/27272a/png?text=streaming%20stick", "tags": ""}, {"id": "P0541", "name": "Apple TV 4K", "brand": "Apple", "category": "טלוויזיה, גיימינג ובידור", "price": 2139, "image": "https://placehold.co/600x600/f4f4f5/27272a/png?text=apple%20tv%204k", "tags": ""}, {"id": "P0701", "name": "מייבש שיער מקצועי דיגיטלי", "brand": "Dyson", "category": "טיפוח ובריאות", "price": 1909, "image": "https://placehold.co/600x600/f4f4f5/27272a/png?text=hair%20dryer", "tags": ""}, {"id": "P0707", "name": "מכשיר סטיילינג רב-תכליתי", "brand": "Dyson", "category": "טיפוח ובריאות", "price": 369, "image": "https://placehold.co/600x600/f4f4f5/27272a/png?text=hair%20styler", "tags": ""}, {"id": "P0936", "name": "מיטת אורתופדית לכלב בגדלים שונים", "brand": "ComfortPet", "category": "חיות מחמד", "price": 829, "image": "https://placehold.co/600x600/f4f4f5/27272a/png?text=dog%20bed", "tags": ""}, {"id": "P0937", "name": "רצועת הליכה נשלפת לכלב", "brand": "PetSafe", "category": "חיות מחמד", "price": 349, "image": "https://placehold.co/600x600/f4f4f5/27272a/png?text=dog%20leash", "tags": ""}, {"id": "P0940", "name": "מצלמת בית לכלב עם זריקת חטיפים מרחוק", "brand": "Furbo", "category": "חיות מחמד", "price": 659, "image": "https://placehold.co/600x600/f4f4f5/27272a/png?text=dog%20camera", "tags": ""}, {"id": "P0948", "name": "מכונת טיפוח ותספורת לבעלי חיים", "brand": "GroomEasy", "category": "חיות מחמד", "price": 249, "image": "https://placehold.co/600x600/f4f4f5/27272a/png?text=pet%20grooming%20clippers", "tags": ""}, {"id": "P0950", "name": "מברשת הסרת שיער לכלבים וחתולים", "brand": "FurAway", "category": "חיות מחמד", "price": 59, "image": "https://placehold.co/600x600/f4f4f5/27272a/png?text=pet%20grooming%20brush", "tags": "שערות כלב ספה שיער חיות מחמד pet hair"}, {"id": "P0278", "name": "כיריים אינדוקציה בוש עם בקרת מגע ואזורי בישול גמישים", "brand": "Bosch", "category": "מוצרי חשמל לבית", "price": 4849, "image": "https://placehold.co/600x600/f4f4f5/27272a/png?text=induction%20hob", "tags": ""}];
+const STOP = new Set(['משהו','מישהו','למישהו','של','עם','שיעזור','לנקות','שאוהב','לחובב','for','the','a','to','something']);
+const ALIASES = { 'אייפון': 'iphone', 'דייסון': 'dyson', 'לבשל': 'בישול', 'מקרוגל': null };
+const SUGGESTIONS = ['שואב אבק', 'iPhone 16', 'אייפון', 'מתנה למישהו שאוהב לבשל', 'משהו שיעזור לנקות שערות של כלב מהספה'];
+const FALLBACK_IMG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><rect width="120" height="120" fill="#eceef1"/>' +
+  '<path d="M38 80l16-20 12 14 8-10 14 16z" fill="#b8bec7"/><circle cx="76" cy="44" r="8" fill="#b8bec7"/></svg>');
+
+const dev = { latency: 600, fail: false };
+
+function variants(word) {
+  const v = [word];
+  if (ALIASES[word]) v.push(ALIASES[word]);
+  let x = word;
+  for (let i = 0; i < 2; i++) if (/^[והבלמשכ]/.test(x) && x.length > 3) { x = x.slice(1); v.push(x); }
+  for (const y of [...v]) { const s = y.replace(/(ים|ות)$/, ''); if (s !== y && s.length >= 2) v.push(s); }
+  for (const y of [...v]) if (/[a-z]s$/.test(y)) v.push(y.slice(0, -1));
+  return [...new Set(v)];
+}
+
+function rank(q) {
+  const words = q.toLowerCase().replace(/[֑-ׇ]/g, '').split(/[^\p{L}\p{N}]+/u).filter(w => w.length > 1 && !STOP.has(w));
+  const terms = words.filter(w => !/^\d+[a-z]*$/.test(w)).map(variants);
+  const qualifiers = words.filter(w => /^\d+[a-z]*$/.test(w));
+  const scored = PRODUCTS.map(p => {
+    const hay = `${p.name} ${p.brand ?? ''} ${p.category} ${p.tags}`.toLowerCase();
+    const matched = terms.filter(vs => vs.some(v => hay.includes(v))).length;
+    const brand = p.brand && terms.some(vs => vs.includes(p.brand.toLowerCase())) ? 1 : 0;
+    return { p, s: matched * 10 + brand * 5 + (p.name.toLowerCase().includes(words[0] ?? '§') ? 2 : 0) };
+  }).filter(x => x.s >= 10).sort((a, b) => b.s - a.s || a.p.id.localeCompare(b.p.id));
+  const results = scored.slice(0, 24).map(x => x.p);
+  let notice = null;
+  if (results.length && qualifiers.some(qq => !results.slice(0, 3).some(r => r.name.toLowerCase().includes(qq))))
+    notice = { type: 'missing_model', message: 'לא נמצא דגם מדויק, הנה המוצרים הקרובים' };
+  return { results, notice };
+}
+
+function mockSearch(q, signal) {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => {
+      if (dev.fail || q.trim() === 'error') return reject(new Error('server'));
+      let { results, notice } = rank(q);
+      if (!results.length && /מקרוגל/.test(q)) {           // demo of the typo fallback
+        results = PRODUCTS.filter(p => p.name.includes('מיקרוגל'));
+        notice = { type: 'did_you_mean', message: 'האם התכוונת: מיקרוגל?', suggestion: 'מיקרוגל' };
+      }
+      resolve({ query: q, total: results.length, results, notice });
+    }, dev.latency);
+    signal.addEventListener('abort', () => { clearTimeout(t); reject(new DOMException('aborted', 'AbortError')); });
+  });
+}
+
+const formatPrice = n => '₪' + n.toLocaleString('en-US');
+
+// ===== UI CONTROLLER (same behaviour as the real app.js/state.js will have) =====
+const $ = s => document.querySelector(s);
+const input = $('#q'), live = $('#live'), main = document.body;
+let timer = null, ctrl = null, lastQuery = '';
+
+function setState(state) { main.dataset.state = state; }
+function announce(text) { live.textContent = ''; setTimeout(() => (live.textContent = text), 30); }
+
+function syncUrl(q) {
+  const url = new URL(location.href);
+  q ? url.searchParams.set('q', q) : url.searchParams.delete('q');
+  history.replaceState(null, '', url);
+}
+
+function run(q) {
+  q = q.trim().slice(0, 100);
+  lastQuery = q;
+  syncUrl(q);
+  ctrl?.abort();
+  $('#clear').hidden = !input.value;
+  if (!q) { setState('idle'); announce(''); return; }
+  if (q.length < 2) { setState('short'); announce('הקלידו לפחות 2 תווים'); return; }
+  ctrl = new AbortController();
+  setState('loading');
+  renderSkeletons();
+  mockSearch(q, ctrl.signal).then(res => {
+    if (!res.results.length) { setState('empty'); renderEmpty(q); announce('לא נמצאו מוצרים'); return; }
+    setState('results');
+    renderResults(res);
+    announce(`נמצאו ${res.total} מוצרים`);
+  }).catch(err => {
+    if (err.name === 'AbortError') return;          // an older request — ignore
+    setState('error'); announce('אירעה שגיאה בחיפוש');
+  });
+}
+
+function el(tag, attrs = {}, ...children) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) if (v !== null && v !== undefined) n.setAttribute(k, v);
+  for (const c of children) n.append(c);
+  return n;
+}
+
+function img(p) {
+  const i = el('img', { src: p.image, alt: '', loading: 'lazy', decoding: 'async', width: 600, height: 600 });
+  i.addEventListener('error', () => { i.src = FALLBACK_IMG; i.closest('.card')?.classList.add('no-img'); }, { once: true });
+  return i;
+}
+
+function renderSkeletons() {
+  const grid = $('#grid'); grid.replaceChildren();
+  for (let i = 0; i < 8; i++) grid.append(el('li', { class: 'card skeleton', 'aria-hidden': 'true' }, el('div', { class: 'ph-img' }), el('div', { class: 'ph-line' }), el('div', { class: 'ph-line short' })));
+}
+
+function renderResults(res) {
+  const grid = $('#grid'); grid.replaceChildren(...res.results.map(renderCard));
+  const n = $('#notice');
+  n.hidden = !res.notice;
+  if (res.notice) {
+    n.replaceChildren(res.notice.message);
+    if (res.notice.suggestion) { const b = el('button', { type: 'button', class: 'link' }, `חפשו "${res.notice.suggestion}"`); b.onclick = () => go(res.notice.suggestion); n.append(' ', b); }
+  }
+  $('#count').textContent = `${res.total} מוצרים`;
+}
+
+function renderEmpty(q) {
+  $('#empty-q').textContent = q;
+}
+
+function chips(container) {
+  container.replaceChildren(...SUGGESTIONS.map(s => { const b = el('button', { type: 'button', class: 'chip' }, s); b.onclick = () => go(s); return el('li', {}, b); }));
+}
+
+function go(q) { input.value = q; run(q); input.focus(); }
+
+input.addEventListener('input', () => { clearTimeout(timer); $('#clear').hidden = !input.value; timer = setTimeout(() => run(input.value), 250); });
+$('#form').addEventListener('submit', e => { e.preventDefault(); clearTimeout(timer); run(input.value); });
+$('#clear').addEventListener('click', () => { input.value = ''; run(''); input.focus(); });
+$('#retry').addEventListener('click', () => run(lastQuery));
+document.addEventListener('keydown', e => {
+  if (e.key === '/' && document.activeElement !== input) { e.preventDefault(); input.focus(); }
+  if (e.key === 'Escape' && document.activeElement === input) { input.value = ''; run(''); }
+});
+document.querySelectorAll('[data-chips]').forEach(chips);
+
+// dev panel
+$('#dev-latency').addEventListener('change', e => (dev.latency = +e.target.value));
+$('#dev-fail').addEventListener('change', e => (dev.fail = e.target.checked));
+document.querySelectorAll('[data-demo]').forEach(b => b.addEventListener('click', () => go(b.dataset.demo)));
+
+const initial = new URL(location.href).searchParams.get('q');
+if (initial) { input.value = initial; run(initial); } else setState('idle');
+
+</script>
+</body>
+</html>

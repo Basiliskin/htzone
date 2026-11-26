@@ -30,8 +30,10 @@ _TBD — example queries: [`docs/requirements.md` §4](docs/requirements.md)._
 - Embeddings (hybrid vector + keyword search) for phrasings the tags don't cover.
 - Rate limiting with shared storage; search analytics and monitoring.
 - Product detail page.
+- Dark mode (the placeholder images are light; it needs real product photos first).
 
 ## Working with Claude
 Process log: [`docs/ai-log/SESSION-LOG.md`](docs/ai-log/SESSION-LOG.md) (prompts auto-captured in `docs/ai-log/PROMPTS.md`).
 - **Rejected:** Claude first proposed runtime embeddings via an external API + pgvector; replaced with offline enrichment so the deploy has no runtime dependency or secret.
+- **Self-correction caught in prototyping:** Claude's own requirement said to use `dir="auto"` on product names; a screenshot of the prototype showed it flips names starting with English to left-to-right. The requirement and design were changed so names inherit RTL.
 - _More examples added as work progresses._
