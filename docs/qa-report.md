@@ -175,8 +175,10 @@ User: F2 should be fixed too, limited on the server. D1 (a) and D2 (a) were take
 | F3 | **fixed**: `Strict-Transport-Security: max-age=31536000` in `src/Http/Kernel.php` + Apache (D40) | `KernelTest` red (5 failures) → green; header on API and static files of the rebuilt prod image; CI smoke asserts it |
 | F4 | **fixed**: `render.js` `announcement` appends the notice message | new `render.test.js` case red → green; browser: "נמצאו 6 מוצרים. לא נמצא דגם מדויק, הנה המוצרים הקרובים", "נמצאו 5 מוצרים. האם התכוונת: מיקרוגל?" |
 | F5, F6 | ignored (deliberate, documented) | |
-| F7 | **fixed**: checkout/setup-node/upload-artifact v7, setup-buildx v4, build-push v7 (none of the removed inputs are used) | YAML parses; **verified only once CI runs on the push** |
+| F7 | **fixed**: checkout/setup-node/upload-artifact v7, setup-buildx v4, build-push v7 (none of the removed inputs are used) | CI run 45819604339 on `6bd7aba`: all 3 jobs green, no Node 20 warning |
 | F8 | **fixed**: placeholder removed, time note, QA line in *How it was tested*, a QA example in *Working with Claude*, 414 + HSTS in the API/defaults lines | README |
 | F9 | **open**: the user runs Lighthouse on the live URL | |
 
 Re-run after the fixes: see SESSION-LOG (QA entry).
+
+**Live after deploy (`6bd7aba`):** HSTS on the page, API and static files; a 3000-char query → `HTTP/2 414`, `application/json; charset=utf-8`, `no-store`, `request_too_long`; Render deployed within ~15 s of CI finishing; live E2E 3 passed (4.0 s); live `aria-live` reads the missing-model and did-you-mean notices.

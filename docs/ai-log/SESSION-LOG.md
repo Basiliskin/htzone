@@ -235,3 +235,13 @@ How the work was done with Claude, step by step. Prompts are captured verbatim i
 **Artifacts:** `docs/qa-report.md`, `docker/apache.conf`, `public/errors/414.json`, `src/Http/Kernel.php`, `tests/Integration/Http/KernelTest.php`, `public/assets/render.js`, `tests/js/render.test.js`, `.github/workflows/ci.yml`, `README.md`, `docs/decisions.md` (D39–D40), `docs/architecture.md` §8.
 
 **Next step suggested:** commit + push → CI green (verifies F7) → Render deploys → re-check HSTS and the 414 live; the user runs Lighthouse (F9); then `/interview`.
+
+## 2026-11-26 23:50 : qa — live recheck after push
+
+**User input:**
+> commiteed and pushed
+
+**Verified (real output):** CI run 45819604339 on `6bd7aba`: checks, frontend, and image + smoke + E2E all green on the bumped Actions (F7 closed). Live: HSTS on page/API/assets; 3000-char query → JSON 414 `request_too_long`, `no-store`; live E2E 3 passed; live `aria-live` includes the notices. `docs/qa-report.md` §9 updated.
+**Open:** F9 Lighthouse score (user).
+
+**Next step suggested:** `/interview`
