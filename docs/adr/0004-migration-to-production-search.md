@@ -1,6 +1,6 @@
 # ADR 0004 — Migrating to a production search stack
 
-**Status:** proposed (2026-11-27), not implemented: the path beyond the brief · **Relates to:** ADR 0001, 0002, 0003 · D2, D3, D5, D15, D17, D41 · README *Production-grade design*
+**Status:** proposed (2026-11-27), not implemented: the path beyond the brief · **Relates to:** ADR 0001, 0002, 0003 · D2, D3, D5, D15, D17, D41 · [`docs/production-design.md`](../production-design.md)
 
 ## Context
 The current design is sized for the brief: 1,000 read-only products, one free container, no API keys, ~4 h of work. Search is SQLite FTS5 plus our own Hebrew word handling (`QueryNormalizer`, D3/D31/D32), a PHP `Ranker` with hand-tuned `RankingWeights` (ADR 0003, D41) and offline Claude tags (ADR 0001).
@@ -11,7 +11,7 @@ At store scale (50k–1M products, live prices and stock, real traffic), this ru
 - **The catalog is baked into the image.** A price change needs a deploy (ADR 0002).
 - **There is no analytics, cache, rate limiting or meaning-based (vector) retrieval.**
 
-The target architecture is described in the README section *Production-grade design (beyond the brief)*. This ADR records **what has to change in this codebase to get there, and in what order**.
+The target architecture is described in [`docs/production-design.md`](../production-design.md) (moved from the README, D47). This ADR records **what has to change in this codebase to get there, and in what order**.
 
 ## Options
 1. **Keep the design and scale it in place:** Postgres full-text search (tsvector + pg_trgm) behind the current `ProductRepository`, keeping `QueryNormalizer` and `Ranker`. Cheapest, but it keeps the hand-written word handling and hand-tuned ranking, which are the real limits.

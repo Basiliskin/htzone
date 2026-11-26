@@ -330,3 +330,13 @@ How the work was done with Claude, step by step. Prompts are captured verbatim i
 > commited and pushed - check live
 
 **Verified (real output):** CI on `adcafcb` succeeded (all 3 jobs, E2E against the prod image). Render served the new version about 60 s after CI. Live API: `שואב אבק` chips = מוצרי חשמל לבית (15), כלי עבודה ורכב (1); `מתנה` + kitchen + max 400 → 4 kitchen products, ₪199–₪379; `kettle` unfiltered unchanged (P0162, P0009, P0952, P0802, P0805); `min=500&max=100` → 400 `invalid_filter`; `max=1` → 0 results. E2E against https://htzone.onrender.com: 5/5 passed.
+
+## 2026-11-26 15:50 : README vs the brief's required sections
+
+**User input:**
+> do readme cover all these requirements ? "README קצר הכולל: הוראות הרצה וטעינת הקטלוג. ההחלטות המרכזיות… כיצד בדקתם… עם כמה דוגמאות לחיפושים. מגבלות ידועות… כיצד עבדתם עם Claude, כולל דוגמה להצעה שלו ששיניתם או דחיתם."
+> a   (D47)
+
+**Finding:** all five items present, but example searches were only scattered in prose, and "short" was not met (~3,500 words). Also stale after the filters: API line, "three" E2E flows, "six" states.
+**Options offered:** D47 (a) trim to ~1,400 words and move detail to docs/ · (b) keep all + summary · (c) leave. **Decision:** a.
+**Work:** added an example-search table (9 searches, live results checked with `curl` on 2026-11-26). Moved verbatim: *Production-grade design* → `docs/production-design.md` (ADR 0004 link updated), test details → `docs/testing.md`, all 15 Claude examples → `docs/ai-log/claude-examples.md`. README keeps 5 Claude examples. Facts re-checked against code: prefix letters (`QueryNormalizer::PREFIX_LETTERS` has 7, incl. כ), relevance rows (25 in `ExampleQueriesTest`, so "16 more"), D7 for light DDD.
