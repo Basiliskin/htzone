@@ -50,10 +50,14 @@ src/
       SearchQuery.php         # value object: validated, trimmed, truncated raw text
       QueryNormalizer.php     # text → list<SearchTerm> (niqqud, aliases, stop-words, prefixes, plurals)
       SearchTerm.php          # value object: original word + variants + isQualifier
+      Variant.php             # value object: variant text + strength (D31)
+      Tokenizer.php           # splits text into words exactly like the FTS5 unicode61 index
+      InvalidQuery.php        # query too short → 400
       Aliases.php             # const map אייפון→iphone, דייסון→dyson …
       StopWords.php           # const list (HE+EN filler words)
       Candidate.php           # Product + ftsScore (from repository)
       Ranker.php              # pure re-ranking → list<RankedProduct>
+      RankedProduct.php       # Product + score (+ typo suggestion)
       RankingWeights.php      # all tuning numbers in one place
       Trigrams.php            # trigram split + similarity (typo fallback)
   Application/
@@ -118,18 +122,19 @@ Enforced by review and `/qa` (optionally a PHPStan rule later). Every file start
   - trims and collapses whitespace, and removes control and invisible bidirectional characters;
   - truncates to 100 characters;
   - throws `InvalidQuery` when shorter than 2 characters → HTTP 400 (`query_too_short`).
-- **SearchTerm** (value object). `original` (lowercased word as typed), `variants` (ordered, `original` first) and `isQualifier`. A qualifier is a pure number or a number with a unit, such as `16` or `128gb`.
+- **SearchTerm** (value object). `original` (lowercased word as typed), `variants` (`list<Variant>`, ordered, `original` first) and `isQualifier`. A qualifier is a pure number or a number with up to 3 letters of unit, such as `16` or `128gb`.
+- **Variant** (value object, *added in S2*, D31). `text` + `strength` in (0, 1]: 1.0 for the word as typed or an alias, −0.15 per stripped prefix letter, −0.1 for a stripped plural, −0.2 for the construct ־י. The Ranker scores a term by its strongest matching variant.
 - **QueryNormalizer** (pure). Turns a `SearchQuery` into a `list<SearchTerm>` in these steps:
-  1. Remove niqqud and cantillation (U+0591–U+05C7), plus the geresh and gershayim marks (׳ ״ ' ") that sit inside words.
-  2. Lowercase, then split on anything that isn't a letter or a digit.
-  3. Drop stop-words (`StopWords`) and single-letter tokens.
-  4. **Aliases:** a token found in `Aliases` adds its target as a variant (אייפון → iphone, דייסון → dyson).
-  5. **Hebrew prefixes:** if the token is Hebrew and longer than 3 letters, strip up to 2 leading letters from {ו ה ב ל מ ש כ}. Each step produces a variant (מהספה → הספה → ספה), and a variant must keep at least 2 letters.
-  6. **Hebrew plurals:** strip the suffixes ים / ות / יות when at least 2 letters remain (שערות → שער, כלבים → כלב), applied to the original and to each prefix-stripped variant.
-  7. **English plurals:** `-ies → -y`, `-es → ''` (after s/x/ch/sh), `-s → ''` (not after `ss`).
-  8. Remove duplicate variants, keeping the order: original first.
-- **Ranker** (pure). Input is a list of candidates (up to 100) and the terms. Output is a ranked list of at most 24. The rules are in §6.
-- **Trigrams** (pure). `split(word)` and `similarity(a, b)` (Jaccard similarity over trigram sets), used by the typo fallback.
+  1. **`Tokenizer::words()`** (*added in S2*, shared with the Ranker): remove combining marks (`\p{Mn}`: niqqud, cantillation), lowercase, split on anything that isn't a letter or a digit. *Changed in S2:* a geresh or apostrophe **splits** the word (דולצ׳ה → דולצ + ה) instead of being deleted, because SQLite's `unicode61` tokenizer indexes the catalog that way (checked with `fts5vocab`); deleting it would make "דולצה" match nothing.
+  2. Numbers (optionally with a unit) become qualifier terms with no other variants.
+  3. Drop stop-words (`StopWords`) and single-letter tokens. A word is also dropped when a prefix-stripped form is a stop-word (למישהו → מישהו).
+  4. **Hebrew prefixes:** strip up to 2 leading letters from {ו ה ב ל מ ש כ}, one variant per step (מהספה → הספה → ספה). Each stripped form keeps **at least 3 letters** (D31; the 2-letter rule produced "של" from "לבשל"). Words that are themselves aliases (בראון) aren't stripped.
+  5. **Hebrew plurals:** strip יות / ות / ים, and the construct plural ־י (שואבי → שואב, AC-1.5), when at least 3 letters remain; applied to the original and to each prefix-stripped form. If the stem ends in כ מ נ פ צ, the final-letter form is added too (ארונות → ארונ + ארון, D32).
+  6. **English plurals:** `-ies → -y`, `-es → ''` (after s/x/ch/sh), `-s → ''` (not after `ss`); the stem keeps at least 3 letters.
+  7. **Aliases**, looked up both ways for every variant: אייפון ↔ iphone, דייסון ↔ dyson (the variant's strength carries over).
+  8. Duplicates are removed keeping the first position and the highest strength; repeated query words become one term.
+- **Ranker** (pure). Input is a list of `Candidate` (Product + bm25, up to 100) and the terms. Output is a ranked `list<RankedProduct>` (Product + score, plus `suggestion` from the typo fallback) of at most 24. The rules are in §6.
+- **Trigrams** (pure). `split(word)`, `similarity(a, b)` (Jaccard similarity over trigram sets) and `closest(word, words)`, used by the typo fallback.
 - **ProductRepository** (interface, the only port):
   - `findCandidates(list<SearchTerm> $terms, int $limit): list<Candidate>`
   - `findByTrigrams(list<string> $words, int $limit): list<Candidate>`
@@ -205,11 +210,12 @@ GET /api/search?q=…
 
 **Ranker rules** (all numbers in `RankingWeights`, tuned against the relevance tests):
 1. `base` = −bm25, min-max normalized across the candidates to 0..1.
-2. `coverage` = matched non-qualifier terms ÷ non-qualifier terms. A term counts as matched if any of its variants starts a word in name, brand, tags or category. Weight: high, so this is the main signal.
-3. `exactBonus` if the original form (not a stripped variant) matched. This favours "ספה" over a "ספ" false positive.
+2. `coverage` = Σ (strength of the strongest variant that starts a word in name, brand, tags or category/subcategory) ÷ non-qualifier terms (D31). Weight: high, so this is the main signal. Words are split with the same `Tokenizer` as the query.
+3. `exactBonus` for each term matched at full strength (as typed, or an alias). This favours "כלבים" over the guess "כלב".
 4. `brandBonus` if a term equals the Product's brand (case-insensitive, aliases applied).
 5. `nameBonus` if a term matches in the name (stronger than matching only in tags or description).
-6. **Qualifiers** (numbers and units) add a small bonus only when matched alongside at least one non-qualifier term. A candidate matching only qualifiers is dropped whenever any candidate matches a non-qualifier. This stops "iPhone 16" from surfacing pans and laptops through "16".
+6. **Qualifiers** (numbers and units) must equal a whole word ("16" doesn't match "160"), and are also looked up in the attributes. They add a small bonus only when matched alongside at least one non-qualifier term. A candidate matching only qualifiers is dropped whenever any candidate matches a non-qualifier. This stops "iPhone 16" from surfacing pans and laptops through "16". A query of numbers only treats them as ordinary terms.
+   Candidates the index found only through the description (coverage 0, no qualifier) are kept, below every field match.
 7. Ties are broken by `id` ascending, so the order is deterministic and the tests are stable.
 8. Return the top 24.
 

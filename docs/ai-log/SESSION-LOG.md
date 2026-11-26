@@ -122,3 +122,19 @@ How the work was done with Claude, step by step. Prompts are captured verbatim i
 **Artifacts:** files above, tests in `tests/{Unit,Integration,Support,Fixtures}`, `docs/architecture.md` §5, §7, §10, `docs/decisions.md` (D29–D30), `docs/stack.md`, `README.md`.
 
 **Next step suggested:** `/developer S2 Domain search logic`
+
+## 2026-11-26 17:10 : developer S2 — domain search logic
+
+**User input:**
+> /developer S2 Domain search logic
+> agree to recommendations (D31 a, D32 a)
+
+**Work (test-first, Domain only, no IO):** `Domain\Search\{SearchQuery, InvalidQuery, Tokenizer, Variant, SearchTerm, StopWords, Aliases, QueryNormalizer, Trigrams, Candidate, RankedProduct, RankingWeights, Ranker}`. Aliases were curated from the brand frequency count in the CSV (410 brands; the frequent ones and the Apple product lines).
+**Verified (real output):** `composer check`: CS Fixer 0 of 44 files to fix, PHPStan max `[OK] No errors`, PHPUnit `OK (94 tests, 10196 assertions)` (Unit 79, Integration 15). Mutation check: each ranking rule was disabled in turn (brand, name and qualifier weights set to 0; the qualifier-only drop; the id tie-break; the D31 3-letter minimum; the D32 ן final letter), and each made its own test fail. Speed on 100 real products: `rank` 2.7 ms, `rankFuzzy` 3.5 ms.
+**Bugs found and fixed:** (1) Claude's hand-written expected table was wrong in 3 rows: it treated א as a prefix letter (ארונות → רונות) and missed the second prefix strip in כלבים and שואבי. The table was fixed after re-deriving the rules, not by changing the code to match. (2) PHPStan max flagged 6 unproven types (an empty `min()`, the non-empty variant list, a `static` cache typed `mixed`). They were fixed in code; nothing was suppressed.
+**Claude suggestion changed/rejected:** the architecture said to delete the geresh inside words. A check of the index (`fts5vocab`) showed SQLite splits there (דולצ׳ה → דולצ, ה; it also splits at niqqud), so the query now splits the same way through one shared `Tokenizer`. Added two things the spec missed: the construct plural ־י (AC-1.5 "שואבי אבק" had no rule) and attribute lookup for qualifiers (sizes live in attributes). The D31 2-letter minimum and the D32 final letters were changes Claude proposed after testing real query words.
+**Options offered:** D31 variant noise · D32 Hebrew final letters.
+**Decision:** D31 a · D32 a.
+**Artifacts:** files above, `tests/Unit/Domain/Search/*`, `docs/architecture.md` §2, §4, §6, `docs/decisions.md` (D31–D32), `README.md` (How it was tested, Working with Claude).
+
+**Next step suggested:** `/developer S3 Repository, use case, relevance`

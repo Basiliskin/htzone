@@ -25,7 +25,8 @@ Full list with reasons: [`docs/decisions.md`](docs/decisions.md).
 - Typo fallback only when nothing matches (D15).
 
 ## How it was tested
-_TBD — example queries: [`docs/requirements.md` §4](docs/requirements.md)._
+- **Unit (domain search logic):** a table-driven test of every normalizer rule (prefixes, plurals, final letters, aliases, niqqud, stop-words, qualifiers) and one hand-made test per ranking rule. Each ranking test was confirmed to **fail** when its rule is switched off (mutation check, SESSION-LOG S2).
+- Relevance tests against the real catalog, from the example queries in [`docs/requirements.md` §4](docs/requirements.md), arrive in S3.
 
 ## Known limitations
 - Prices are synthetic: generated per subcategory range from a hash of the id (`docs/data.md` §3), so within a subcategory they don't reflect the specific model.
@@ -46,4 +47,5 @@ Process log: [`docs/ai-log/SESSION-LOG.md`](docs/ai-log/SESSION-LOG.md) (prompts
 - **Self-correction caught in prototyping:** Claude's own requirement said to use `dir="auto"` on product names; a screenshot of the prototype showed it flips names starting with English to left-to-right. The requirement and design were changed so names inherit RTL.
 - **Tags written by 10 parallel Claude agents** from one committed guide (`data/ENRICHMENT-GUIDE.md`), verified by a check script, example-query coverage and a human spot-check (`docs/data.md` §5–6).
 - **Rejected in review:** Claude-written tags that implied health claims the products don't make ("קורונה" on an oximeter, "אנטי אייג׳ינג" on an LED mask) and a tag that would make vacuum bags match "שואב אבק".
+- **Self-correction caught by tests:** Claude's planned query cleanup deleted the geresh (דולצ׳ה → דולצה), but SQLite indexes the catalog by splitting at it, so the cleaned query could never match. Found by checking the index's own word list; the query now splits the same way.
 - _More examples added as work progresses._
