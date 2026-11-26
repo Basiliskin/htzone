@@ -77,8 +77,11 @@ jobs:
           docker run -d --name app -p 8080:8080 htzone:ci
           for i in $(seq 1 20); do curl -fsS http://localhost:8080/ >/dev/null && break; sleep 1; done
           curl -fsS -D - http://localhost:8080/ -o /dev/null | tee headers.txt
-          grep -qi '^content-security-policy:' headers.txt
+          test "$(grep -ci '^content-security-policy:' headers.txt)" = "1"   # once: Kernel, not Apache too
           test "$(docker exec app id -un)" = "www-data"
+          curl -fsS http://localhost:8080/health | grep -q '"products":1000'
+          curl -fsS 'http://localhost:8080/api/search?q=iPhone' | grep -q '"id":"P04'
+          test "$(curl -s -o /dev/null -w '%{http_code}' 'http://localhost:8080/api/search?q=a')" = "400"
       - name: Container logs (on failure)
         if: failure()
         run: docker logs app || true

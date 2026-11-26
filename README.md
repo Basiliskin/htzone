@@ -15,6 +15,8 @@ docker compose exec app composer check       # format check + PHPStan (max) + PH
 ```
 The production image builds the same database during `docker build` and ships it read-only. All commands: [`docs/stack.md`](docs/stack.md).
 
+API (contract in [`docs/architecture.md` §8](docs/architecture.md)): `GET /api/search?q=…` → `{query,total,results[],notice}`, `GET /health` → `{"status":"ok","products":1000}`. Errors are always `{"error":{"code","message"}}` (400 `query_missing`/`query_too_short`, 404, 405, 500 `internal_error`, never a stack trace). Every request writes one JSON log line to stdout (`docker compose logs -f app`). Config comes from env only (`APP_ENV`, `DB_PATH`, `LOG_LEVEL`, see `.env.example`); there are no secrets.
+
 ## Key decisions
 Full list with reasons: [`docs/decisions.md`](docs/decisions.md).
 - No AI at runtime: Claude-written HE/EN tags are created once and committed; the live search is plain full-text (D2).
@@ -23,10 +25,13 @@ Full list with reasons: [`docs/decisions.md`](docs/decisions.md).
 - SQLite built into the image: one container, no DB password (D5).
 - The catalog has no iPhone 16 — Apple phones are returned with a "no exact model" note (D14).
 - Typo fallback only when nothing matches (D15).
+- Hand-written HTTP layer (~250 lines: Request/Response/Router/Kernel), no framework, so every line can be explained (D19). The DB is opened lazily, so a missing DB gives `/health` 503 instead of a crash (D33). Each request logs one line carrying the search details (D34).
+- Defaults: `q` missing or not text → 400; under 2 characters → 400; over 100 → cut. Search answers are cached for 60 s (catalog changes only on deploy); errors and `/health` are `no-store`. PHP warnings become a logged 500.
 
 ## How it was tested
 - **Unit (domain search logic):** a table-driven test of every normalizer rule (prefixes, plurals, final letters, aliases, niqqud, stop-words, qualifiers) and one hand-made test per ranking rule. Each ranking test was confirmed to **fail** when its rule is switched off (mutation check, SESSION-LOG S2).
 - **Integration:** the SQLite repository against a real temporary DB opened read-only, including hostile input (`" OR 1=1 --`, `'; DROP TABLE`, `NEAR(` …) searched as plain text.
+- **HTTP (integration, Kernel called directly, no server):** response shape, every error code, 404/405/HEAD, all four security headers on every response kind, cache headers, `/health` 200 and 503 (missing, corrupt and empty DB), a thrown error and a PHP warning both give a generic 500 with details only in the log, `<script>` in `q` comes back as `\u003C…`, and the fields of the log line. Mutation-checked (remove `JSON_HEX_TAG`, a header, HEAD body stripping, logging, or the empty-catalog rule → a test fails). Then `curl` against the dev container and the prod image; CI repeats the smoke (one CSP header, non-root, `/health`, a search, a 400).
 - **Relevance:** every row of the example-query table ([`docs/requirements.md` §4](docs/requirements.md), the brief's 5 examples + 14 of ours) runs against the real imported catalog, plus a p95 < 100 ms check (real searches take 0.3–5 ms). Two rows failed at first and were fixed in ranking and data, never by relaxing the test (SESSION-LOG S3).
 
 ## Known limitations
@@ -34,6 +39,7 @@ Full list with reasons: [`docs/decisions.md`](docs/decisions.md).
 - The source CSV has 31 data problems (typos, names that don't match the product); they are reported, not edited, and tags carry the correct spelling (`docs/data.md` §2).
 - Images are text placeholders from the provided CSV.
 - Meaning-based search depends on tag coverage; unusual phrasings not covered by tags can miss.
+- No rate limiting or pagination (24 results max); query-string garbage such as `<script>alert(1)</script>` still returns loose prefix matches rather than nothing.
 
 ## With more time
 - Filters/sorting and pagination.
@@ -50,4 +56,6 @@ Process log: [`docs/ai-log/SESSION-LOG.md`](docs/ai-log/SESSION-LOG.md) (prompts
 - **Rejected in review:** Claude-written tags that implied health claims the products don't make ("קורונה" on an oximeter, "אנטי אייג׳ינג" on an LED mask) and a tag that would make vacuum bags match "שואב אבק".
 - **Self-correction caught by tests:** Claude's planned query cleanup deleted the geresh (דולצ׳ה → דולצה), but SQLite indexes the catalog by splitting at it, so the cleaned query could never match. Found by checking the index's own word list; the query now splits the same way.
 - **Caught by the relevance tests:** for the brief's "מתנה למישהו שאוהב לבשל", Claude's tags said "מתנה לחובבי בישול", which never matches the verb "לבשל", so coffee gift sets ranked first. The fix went into the data (a need tag on 72 cooking products), not into a special case in the code.
+- **Caught by running the real server (S4):** the Kernel tests passed, but `curl` showed every PHP response carried each security header **twice**: Apache's `Header always set` adds a second copy next to PHP's. Apache now skips `index.php` responses, and CI checks for exactly one CSP header. The same `curl` pass also showed a missing `/assets/*.css` coming back as a 200 HTML page, so assets are no longer rewritten to PHP.
+- **Claude's own test was wrong (S4):** the first warning→500 test failed. PHPUnit narrows `error_reporting` while it runs, and Claude's `@`-detection (`error_reporting() & $severity`) mistook every warning for a silenced one. It was replaced with the PHP 8 rule PHPUnit itself uses (only fatal levels left = `@`), which is correct in production as well.
 - _More examples added as work progresses._

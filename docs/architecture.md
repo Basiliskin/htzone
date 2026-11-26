@@ -78,10 +78,14 @@ src/
       EnrichmentReader.php    # JSONL → id → tags
       PriceGenerator.php      # deterministic price per Product
       CatalogImporter.php     # orchestrates import in one transaction
+      LazyProductRepository.php # opens the real repository on first use (D33, S4)
     Logging/
       JsonLogger.php          # one JSON line per event to stdout
   Http/
     Request.php  Response.php  Router.php
+    Controller.php            # interface: handle(Request): Response (3 implementations + test doubles)
+    ApiError.php              # enum: error code → HTTP status + Hebrew message (one error shape)
+    SearchResultJson.php      # SearchResult → response body, notice wording
     Kernel.php                # routing, security headers, error → JSON, request log
     Controller/
       SearchController.php    # GET /api/search
@@ -282,6 +286,8 @@ It runs in three places:
 - `Permissions-Policy: camera=(), microphone=(), geolocation=()`
 - JSON responses also get `Content-Type: application/json; charset=utf-8`. Responses are encoded with `JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_THROW_ON_ERROR`, so `<` can never appear raw.
 
+*Changed in S4:* Apache sets these headers only on responses that don't come from `index.php` (static files, its own 403/404). Otherwise every PHP response carried each header twice. `/assets/*` is never rewritten to PHP, so a missing asset is a real 404. `HEAD` = `GET` without a body. 405 adds `Allow: GET, HEAD`. Errors and `/health` are `Cache-Control: no-store`.
+
 **Request log** (one JSON line to stdout per request, through `JsonLogger`): `ts, level, msg="request", method, path, status, duration_ms, q (≤100 chars), results, notice, fallback (bool)`. Errors also log `exception` class and message, never sent to the client.
 
 ## 9. Frontend (detailed in `docs/design.md`)
@@ -296,7 +302,7 @@ It runs in three places:
 
 `src/bootstrap.php` returns `Htzone\Services`, the composition root used by `public/index.php` and `bin/*` (*changed in S1*, so the CLI entry points don't wire their own objects):
 - `Config::fromEnv()` reads `APP_ENV` (`prod|dev|test`, default `prod`), `DB_PATH` (default `/app/var/catalog.sqlite`) and `LOG_LEVEL` (`info`).
-- `catalogImporter()` / `migrationRunner()` (S1) use a read-write PDO. `kernel()` (S4) builds a read-only PDO, then `SqliteProductRepository`, `QueryNormalizer`, `Ranker`, `SearchProducts`, the controllers, `Router` and `Kernel(JsonLogger)`.
+- `catalogImporter()` / `migrationRunner()` (S1) use a read-write PDO. `kernel()` (S4) builds a `LazyProductRepository` that opens the read-only PDO on first use (D33), then `SqliteProductRepository`, `QueryNormalizer`, `Ranker`, `SearchProducts`, the controllers, `Router` and `Kernel(JsonLogger)`.
 - Nothing else uses `new` for services. Tests build their own graph with the same constructors (plus a fake repository in unit tests). `.env.example` documents the three variables, and there are no secrets.
 
 ## 11. Production checklist → where it's handled

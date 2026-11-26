@@ -45,6 +45,7 @@ COPY docker/opcache-prod.ini /usr/local/etc/php/conf.d/zz-opcache.ini
 COPY --from=vendor /app/vendor ./vendor
 COPY src ./src
 COPY public ./public
+COPY templates ./templates
 COPY bin ./bin
 COPY migrations ./migrations
 COPY data/enrichment.jsonl data/price-ranges.json ./data/

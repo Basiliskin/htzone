@@ -154,3 +154,19 @@ How the work was done with Claude, step by step. Prompts are captured verbatim i
 **Artifacts:** files above, `data/enrichment.jsonl`, `docs/architecture.md` §2, §5, §6, `docs/data.md` §6–7, `README.md` (How it was tested, Working with Claude).
 
 **Next step suggested:** `/developer S4 HTTP API and production concerns`
+
+## 2026-11-26 19:40 : developer S4 — HTTP API and production concerns
+
+**User input:**
+> /developer S4 HTTP API and production concerns
+> agree to recomendations
+
+**Options offered:** D33 how `/health` returns 503 on a missing DB (a lazy repository / b lazy controllers / c try-catch in index.php) · D34 how search details reach the one request log line (a fields carried on the Response / b controller logs its own line / c Kernel parses the body). Stated defaults: `q` validation codes, 503 on an empty catalog, HEAD = GET without body, 405 + `Allow`, cache headers, PHP warnings → 500, logger writes to an injected stream.
+**Decision:** D33 a · D34 a, plus the defaults.
+**Work (test-first):** `Http\{Request, Response, Router, Kernel, Controller, ApiError, SearchResultJson}`, `Http\Controller\{SearchController, HealthController, PageController}`, `Infrastructure\Logging\JsonLogger`, `Infrastructure\Persistence\LazyProductRepository`, `Services::kernel()`, `public/index.php` (one line), `templates/page.php` (a minimal escaped shell with a no-JS form; S5 builds the UI). Wording is in the `ApiError` enum (errors) and `SearchResultJson` (notices) rather than a separate `Messages` class, which turned out simpler.
+**Verified (real output):** `composer check`: CS Fixer 0 of 74 files to fix, PHPStan max `[OK] No errors`, PHPUnit `OK (169 tests, 10513 assertions)`. `curl` on dev and prod: every §8 code, header and cache value matches; `iPhone 16` → `missing_model` with P0413/P0407/P0401; logs reach `docker logs` as JSON; Apache runs as `www-data`; DB and code are read-only. The CI smoke lines were run locally against the prod image: `SMOKE OK`. Mutation check: removing `JSON_HEX_TAG`, a security header, HEAD body stripping or the error log field each failed a test; the empty-catalog rule did **not**, so a test was added and confirmed to fail on that mutation.
+**Bugs found and fixed:** (1) Duplicate security headers on every PHP response (Apache `Header always set` + Kernel), visible only with `curl` against the real server. Apache now skips `index.php` responses, and CI asserts exactly one CSP header. (2) A missing `/assets/*` file was rewritten to PHP and returned a 200 HTML page; assets are now excluded from the rewrite (real 404). (3) The prod image had no `templates/` directory; it's now copied in the Dockerfile.
+**Claude suggestion changed/rejected:** Claude's `@`-detection in the warning handler (`error_reporting() & $severity`) treated every warning as silenced under PHPUnit, which narrows `error_reporting` (`ErrorHandler.php:233`). It was replaced with the PHP 8 rule PHPUnit itself uses. A test assertion for the `<` escape had been saved as a literal `<`, so it asserted the opposite; it was rewritten with escapes and confirmed red/green by mutation.
+**Artifacts:** files above, tests in `tests/{Integration/Http, Unit/Http, Unit/Infrastructure/Logging, Unit/Infrastructure/Persistence}`, `docker/apache.conf`, `Dockerfile`, `.github/workflows/ci.yml`, `phpstan.neon`, `docs/architecture.md` §2, §8, §10, `docs/decisions.md` (D33–D34), `README.md`.
+
+**Next step suggested:** `/developer S5 UI`

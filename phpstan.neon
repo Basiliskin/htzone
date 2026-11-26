@@ -6,6 +6,7 @@ parameters:
     paths:
         - src
         - public
+        - templates
         - tests
         - bin/check-enrichment
         - bin/migrate
