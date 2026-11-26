@@ -76,7 +76,7 @@ The actor is the **Visitor** (anonymous). AC ids are referenced by tests (`AC-x.
 - **AC-4.2** Shorter than 2 characters → not searched, with a hint "הקלידו לפחות 2 תווים" ("type at least 2 characters"). Longer than 100 → cut to 100 characters, never an error.
 - **AC-4.3** Full-text special characters and SQL fragments (`" * ( ) : ^ - OR NEAR '; DROP`) never cause an error. They're treated as plain text.
 - **AC-4.4** `<script>alert(1)</script>` as a Query is shown as text and never executed (not in the UI, not in the API response).
-- **AC-4.5** **Typo fallback (D15):** when the main search returns 0 Results, a close-spelling (trigram) search runs. If it finds Results, they're shown under "האם התכוונת…" ("did you mean…"). Example: "שואב אבכ" → vacuums.
+- **AC-4.5** **Typo fallback (D15):** when the main search returns 0 Results, a close-spelling (trigram) search runs. If it finds Results, they're shown under "האם התכוונת…" ("did you mean…"). Example: "מקרוגל" → מיקרוגל (P0279, P0285).
 - **AC-4.6** **Missing model (D14):** when a Query contains a model number or version token (e.g. `16`) that no Result contains, but other words match, show a note "לא נמצא דגם מדויק, הנה המוצרים הקרובים" ("no exact model found, here are the closest products") above the Results.
 - **AC-4.7** Unicode edge cases (niqqud, RTL marks, emoji) don't cause errors. Niqqud is ignored when matching.
 
@@ -128,13 +128,14 @@ The actor is the **Visitor** (anonymous). AC ids are referenced by tests (`AC-x.
 | 9 | דייסון | P0201 first; P0701 and P0707 in the top 5 | Brand, Hebrew script (name plus alias). |
 | 10 | שואב Dyson | P0201 first | Mixed Hebrew and English. |
 | 11 | robot vacuum | top 5 ⊂ {P0202, P0203, P0204, P0205, P0213} | English only, against a Hebrew Catalog (EN tags). |
-| 12 | מכונת קפה | top 3 ⊂ coffee machines (P0101–P0104 range) | Common two-word product type. |
+| 12 | מכונת קפה | top 3 ⊂ {P0101, P0102, P0103, P0104, P0108, P0109, P0111, P0115}; P0129 (cleaning brush) not first | Common two-word product type. |
 | 13 | Samsung | all top 5 have brand Samsung | Brand field match. |
 | 14 | מתנה לחובב קפה | ≥ 4 of the top 5 in category `קפה, משקאות וגורמה` | The reference image's scenario. |
-| 15 | שואב אבכ | 0 main results → typo fallback; top 5 ⊂ the row 1 set; `notice` = did-you-mean | Typo (D15). |
+| 15 | מקרוגל | 0 main results → typo fallback; top 2 = {P0279, P0285}; `notice` = did_you_mean "מיקרוגל" | Missing-letter Hebrew spelling (D15). Replaced "שואב אבכ": שואב already matches, and trigrams can't fix the 3-letter word אבכ. |
 | 16 | macbok | P0305 and P0306 in the top 3 via typo fallback | English typo (D15). |
 | 17 | קשדגכ / xyzzy | 0 Results → no-results state with suggestions | Nonsense. |
 | 18 | `" OR 1=1 --` | 200, no error; treated as text | Robustness (AC-4.3). |
+| 19 | iPhone 16 (qualifier check) | no product in the top 5 matched *only* on "16" (e.g. P0027, P0301, P0306) | Numbers alone must not pull in products (ADR 0003). |
 
 Exact product ids in rows 12 and 14 are pinned by `/data` after enrichment. If a row can't pass, it's changed only by an explicit decision, never quietly.
 

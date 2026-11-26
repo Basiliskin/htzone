@@ -44,3 +44,17 @@ How the work was done with Claude, step by step. Prompts are captured verbatim i
 **Artifacts:** `docs/requirements.md`, `GLOSSARY.md`, `README.md` (skeleton), `docs/decisions.md` (D14–D16).
 
 **Next step suggested:** `/architect design layers, domain model, DB schema, search pipeline, API contract and ordered build steps for docs/requirements.md`
+
+## 2026-11-26 12:45 : architect — layers, schema, pipeline, API, build steps
+
+**User input:**
+> /architect design layers, domain model, DB schema, search pipeline, API contract and ordered build steps for docs/requirements.md
+> agree to recommendations
+
+**Facts checked (not asked):** `php:8.3-apache` ships SQLite 3.46.1; FTS5 prefix queries and the trigram tokenizer work; `remove_diacritics` does **not** strip Hebrew niqqud → the normalizer strips it. "16" appears in 12 unrelated products (incl. Apple MacBook P0306) → qualifier rule. "מיקרוגל" exists (P0279, P0285).
+**Options offered:** D17 match/rank (a OR + PHP Ranker / b AND→OR fallback / c bm25 only) · D18 server (a php-apache / b nginx+fpm / c FrankenPHP) · D19 HTTP layer (a hand-written / b PSR-7/15 libs / c Slim).
+**Decision:** D17 a · D18 a · D19 a; defaults on schema, migrations, import, composition root, missing-model check accepted.
+**Claude suggestion changed/rejected:** Claude corrected its own earlier test case: relevance row 15 "שואב אבכ" couldn't exercise the typo fallback (שואב already matches; trigrams can't repair a 3-letter word) → replaced with "מקרוגל" (missing-letter spelling). Added row 19 for the numeric-qualifier rule after finding "16" in unrelated products.
+**Artifacts:** `docs/architecture.md`, `docs/adr/0001…0003`, `docs/requirements.md` (rows 12, 15, 19), `docs/decisions.md` (D17–D19), `docs/stack.md`.
+
+**Next step suggested:** `/designer build 2 clickable HTML prototypes of the search page per docs/requirements.md, docs/architecture.md and the reference image in assets/`

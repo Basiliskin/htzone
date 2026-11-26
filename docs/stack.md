@@ -7,12 +7,12 @@ Project-specific input for the generic role skills in `.claude/skills/`. Command
 |---|---|
 | Language | PHP 8.3, `declare(strict_types=1)` everywhere, Composer, PSR-4 autoloading, no framework |
 | DB | SQLite + FTS5 (full-text index, prefix matching, BM25 ranking with field weights), accessed via PDO prepared statements |
-| Migrations | Numbered SQL files in `migrations/` + a small PHP runner, tracked in a `migrations` table |
+| Migrations | Numbered SQL files in `migrations/` + a small PHP runner, tracked in a `schema_migrations` table |
 | Data | `assets/catalog_no_prices.csv` (source, 1000 products, no prices) + `data/enrichment.jsonl` (Claude-written HE/EN tags, committed) + prices generated with a fixed seed per category, stored in agorot |
 | Frontend | Plain HTML + modern CSS + vanilla JS modules, no build step, served by PHP; RTL, mobile-first |
 | Static analysis | PHPStan (max level), PHP CS Fixer (PSR-12) |
 | Tests | PHPUnit (unit, integration, relevance), Playwright (one E2E) |
-| Runtime | Docker (local + production), non-root, image built with the DB inside |
+| Runtime | `php:8.3-apache` (mod_php) in Docker, local + production; non-root; DB built inside the image (D18) |
 | CI | GitHub Actions: format check → PHPStan → PHPUnit → Docker build |
 | Hosting | Render free web service (Docker), keep-awake ping to `/health` |
 
@@ -21,13 +21,15 @@ Project-specific input for the generic role skills in `.claude/skills/`. Command
 |---|---|
 | Start local | `docker compose up -d` (service `app`, project mounted at `/app`) |
 | Install deps | `docker compose exec app composer install` |
+| Migrate only | `docker compose exec app php bin/migrate` |
 | Migrate + import catalog | `docker compose exec app php bin/import` |
-| Unit + integration + relevance tests | `docker compose exec app vendor/bin/phpunit` |
+| Check enrichment | `docker compose exec app php bin/check-enrichment` |
+| All PHP tests | `docker compose exec app vendor/bin/phpunit` (suites: `--testsuite Unit|Integration|Relevance`) |
 | Static analysis | `docker compose exec app vendor/bin/phpstan analyse` |
 | Format check / fix | `docker compose exec app vendor/bin/php-cs-fixer fix --dry-run --diff` / `... fix` |
 | E2E | `npx playwright test` (against `http://localhost:8080`) |
 | Build prod image | `docker build -t htzone .` |
-| Open | http://localhost:8080 |
+| Open | http://localhost:8080 (compose maps 8080 → container 80) |
 
 ## Hooks (`.claude/settings.json`)
 - `UserPromptSubmit` → `.claude/hooks/log-prompt.mjs`: appends each prompt to `docs/ai-log/PROMPTS.md` (skips `/interview`).
