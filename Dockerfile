@@ -57,3 +57,6 @@ RUN php bin/import \
  && chmod -R a-w /app \
  && chmod 0444 /app/var/catalog.sqlite
 USER www-data
+# For `docker run` / compose. Render ignores this and polls healthCheckPath from render.yaml instead.
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+    CMD curl -fsS "http://localhost:${PORT}/health" >/dev/null || exit 1

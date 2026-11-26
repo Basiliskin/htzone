@@ -311,3 +311,7 @@
 ### 2026-11-26T11:38:43.348Z : chat
 
 > agree to recomendations
+
+### 2026-11-26T11:48:00.388Z : devops
+
+> /devops deploy per docs/stack.md and verify the live site

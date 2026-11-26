@@ -1,0 +1,17 @@
+# Render Blueprint (D10): one free Docker web service built from the Dockerfile's last stage (prod).
+# Render sets PORT (10000); Apache reads it at start-up, so no port is hard-coded here.
+services:
+  - type: web
+    name: htzone
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeployTrigger: checksPass   # deploy a push to main only after GitHub Actions CI is green
+    envVars:
+      - key: APP_ENV
+        value: prod
+      - key: LOG_LEVEL
+        value: info
